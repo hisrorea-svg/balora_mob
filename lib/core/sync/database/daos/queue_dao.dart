@@ -74,8 +74,9 @@ class QueueDao extends DatabaseAccessor<AppDatabase> with _$QueueDaoMixin {
 
   /// Returns a specific item by its commandId.
   Future<QueueItemEntry?> getById(String id) {
-    return (select(queueItems)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (select(
+      queueItems,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   /// Watches pending count reactively.
@@ -144,10 +145,9 @@ class QueueDao extends DatabaseAccessor<AppDatabase> with _$QueueDaoMixin {
 
   /// Removes a completed item from the queue.
   Future<void> removeCompleted(String id) {
-    return (delete(queueItems)
-          ..where((t) =>
-              t.id.equals(id) &
-              t.status.equals(QueueStatus.completed)))
+    return (delete(queueItems)..where(
+          (t) => t.id.equals(id) & t.status.equals(QueueStatus.completed),
+        ))
         .go();
   }
 
@@ -158,17 +158,17 @@ class QueueDao extends DatabaseAccessor<AppDatabase> with _$QueueDaoMixin {
 
   /// Removes all completed items.
   Future<void> clearCompleted() {
-    return (delete(queueItems)
-          ..where((t) => t.status.equals(QueueStatus.completed)))
-        .go();
+    return (delete(
+      queueItems,
+    )..where((t) => t.status.equals(QueueStatus.completed))).go();
   }
 
   /// Resets all "sending" items back to "pending".
   /// Called on app startup to recover from crashes.
   Future<void> resetStuckItems() {
-    return (update(queueItems)
-          ..where((t) => t.status.equals(QueueStatus.sending)))
-        .write(
+    return (update(
+      queueItems,
+    )..where((t) => t.status.equals(QueueStatus.sending))).write(
       QueueItemsCompanion(
         status: const Value(QueueStatus.pending),
         updatedAt: Value(DateTime.now()),
@@ -176,4 +176,3 @@ class QueueDao extends DatabaseAccessor<AppDatabase> with _$QueueDaoMixin {
     );
   }
 }
-

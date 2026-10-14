@@ -8,11 +8,7 @@ import 'router.dart';
 
 /// Global logger instance.
 final logger = Logger(
-  printer: PrettyPrinter(
-    methodCount: 0,
-    errorMethodCount: 5,
-    lineLength: 80,
-  ),
+  printer: PrettyPrinter(methodCount: 0, errorMethodCount: 5, lineLength: 80),
 );
 
 /// Initializes all services and runs the app.
@@ -30,9 +26,7 @@ final logger = Logger(
 /// the engine is wired up.
 Future<void> bootstrap() async {
   // Lock orientation to portrait for scanning ergonomics.
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   // System UI style.
   SystemChrome.setSystemUIOverlayStyle(
@@ -48,15 +42,10 @@ Future<void> bootstrap() async {
   // and discarded the first one's ApiClient wiring (BUG-R6). Now everything
   // lives in the same scope.
   final container = ProviderContainer(
-    overrides: [
-      initialLocationProvider.overrideWithValue('/splash'),
-    ],
+    overrides: [initialLocationProvider.overrideWithValue('/splash')],
   );
 
   runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const BaloraApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const BaloraApp()),
   );
 }

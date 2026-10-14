@@ -32,11 +32,7 @@ class ProductRepository {
   }) async {
     final response = await _apiClient.post<Map<String, dynamic>>(
       '/m/api/scan',
-      data: {
-        'scanId': _uuid.v4(),
-        'barcode': barcode,
-        'symbology': symbology,
-      },
+      data: {'scanId': _uuid.v4(), 'barcode': barcode, 'symbology': symbology},
     );
 
     switch (response) {
@@ -62,19 +58,17 @@ class ProductRepository {
             final priceFound = scanData['priceFound'] as bool? ?? false;
             final priceMinor = (scanData['priceMinor'] as num?)?.toInt() ?? 0;
             final rawCurrency = (scanData['currency'] as String?)?.trim();
-            final currency =
-                (rawCurrency != null && rawCurrency.isNotEmpty)
-                    ? rawCurrency
-                    : 'IQD';
+            final currency = (rawCurrency != null && rawCurrency.isNotEmpty)
+                ? rawCurrency
+                : 'IQD';
             final divisor = currency.toUpperCase() == 'IQD' ? 1000.0 : 100.0;
             final majorPrice = priceFound ? (priceMinor / divisor) : 0.0;
             final quantityAvailable =
                 (scanData['quantityAvailable'] as num?)?.toInt() ?? 0;
             final rawName = (scanData['productName'] as String?)?.trim();
-            final productName =
-                (rawName != null && rawName.isNotEmpty)
-                    ? rawName
-                    : 'منتج بدون اسم';
+            final productName = (rawName != null && rawName.isNotEmpty)
+                ? rawName
+                : 'منتج بدون اسم';
 
             return Success(
               Product(

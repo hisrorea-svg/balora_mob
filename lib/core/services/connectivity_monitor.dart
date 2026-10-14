@@ -16,7 +16,7 @@ class ConnectivityMonitor {
   bool _isConnected = true;
 
   ConnectivityMonitor({Connectivity? connectivity})
-      : _connectivity = connectivity ?? Connectivity();
+    : _connectivity = connectivity ?? Connectivity();
 
   /// Whether the device currently has network access.
   bool get isConnected => _isConnected;

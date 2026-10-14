@@ -18,7 +18,9 @@ import 'package:mocktail/mocktail.dart';
 
 // --- Mocks ---
 class MockApiClient extends Mock implements ApiClient {}
+
 class MockConnectivityMonitor extends Mock implements ConnectivityMonitor {}
+
 class MockWebSocketService extends Mock implements WebSocketService {}
 
 void main() {
@@ -37,18 +39,19 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     queueDao = QueueDao(db);
     queueService = QueueService(queueDao);
-    
+
     apiClient = MockApiClient();
     connectivity = MockConnectivityMonitor();
     webSocket = MockWebSocketService();
-    
+
     connectivityController = StreamController<bool>.broadcast();
     ackController = StreamController<AckResponse>.broadcast();
 
     when(() => connectivity.isConnected).thenReturn(true);
-    when(() => connectivity.onConnectivityChanged)
-        .thenAnswer((_) => connectivityController.stream);
-    
+    when(
+      () => connectivity.onConnectivityChanged,
+    ).thenAnswer((_) => connectivityController.stream);
+
     when(() => webSocket.onAck).thenAnswer((_) => ackController.stream);
 
     syncEngine = SyncEngine(
@@ -67,38 +70,44 @@ void main() {
   });
 
   group('SyncEngine Integration', () {
-    test('syncNow processes items and marks them completed on success', () async {
-      // 1. Enqueue a command
-      final commandId = await queueService.enqueueScan(
-        barcode: '123',
-        deviceId: 'dev-1',
-      );
+    test(
+      'syncNow processes items and marks them completed on success',
+      () async {
+        // 1. Enqueue a command
+        final commandId = await queueService.enqueueScan(
+          barcode: '123',
+          deviceId: 'dev-1',
+        );
 
-      // 2. Mock successful API response
-      when(() => apiClient.post<Map<String, dynamic>>(
+        // 2. Mock successful API response
+        when(
+          () => apiClient.post<Map<String, dynamic>>(
             '/m/api/commands',
             data: any(named: 'data'),
-          )).thenAnswer((_) async => Success({
-            'commandId': commandId,
-            'status': 'success',
-          }));
+          ),
+        ).thenAnswer(
+          (_) async => Success({'commandId': commandId, 'status': 'success'}),
+        );
 
-      // 3. Initialize and trigger sync
-      await syncEngine.initialize();
-      
-      // Wait a tiny bit for the async operations to settle
-      await Future.delayed(Duration.zero);
+        // 3. Initialize and trigger sync
+        await syncEngine.initialize();
 
-      // 4. Verify item is removed from pending queue
-      final count = await queueService.getPendingCount();
-      expect(count, 0);
-      
-      // Verify API was called
-      verify(() => apiClient.post<Map<String, dynamic>>(
+        // Wait a tiny bit for the async operations to settle
+        await Future.delayed(Duration.zero);
+
+        // 4. Verify item is removed from pending queue
+        final count = await queueService.getPendingCount();
+        expect(count, 0);
+
+        // Verify API was called
+        verify(
+          () => apiClient.post<Map<String, dynamic>>(
             '/m/api/commands',
             data: any(named: 'data'),
-          )).called(1);
-    });
+          ),
+        ).called(1);
+      },
+    );
 
     test('syncNow retries on failure and increments retryCount', () async {
       final commandId = await queueService.enqueueScan(
@@ -107,12 +116,16 @@ void main() {
       );
 
       // Mock network failure
-      when(() => apiClient.post<Map<String, dynamic>>(
-            '/m/api/commands',
-            data: any(named: 'data'),
-          )).thenAnswer((_) async => const Failure(
-            NetworkException('Timeout', stackTrace: StackTrace.empty),
-          ));
+      when(
+        () => apiClient.post<Map<String, dynamic>>(
+          '/m/api/commands',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => const Failure(
+          NetworkException('Timeout', stackTrace: StackTrace.empty),
+        ),
+      );
 
       await syncEngine.initialize();
       await Future.delayed(Duration.zero);
@@ -129,17 +142,14 @@ void main() {
     test('syncNow pauses when offline', () async {
       when(() => connectivity.isConnected).thenReturn(false);
 
-      await queueService.enqueueScan(
-        barcode: '123',
-        deviceId: 'dev-1',
-      );
+      await queueService.enqueueScan(barcode: '123', deviceId: 'dev-1');
 
       await syncEngine.initialize();
       await Future.delayed(Duration.zero);
 
       // Should not call API
       verifyNever(() => apiClient.post(any(), data: any(named: 'data')));
-      
+
       expect(syncEngine.status, isA<SyncOffline>());
     });
 
@@ -151,13 +161,14 @@ void main() {
         deviceId: 'dev-1',
       );
 
-      when(() => apiClient.post<Map<String, dynamic>>(
-            '/m/api/commands',
-            data: any(named: 'data'),
-          )).thenAnswer((_) async => Success({
-            'commandId': commandId,
-            'status': 'success',
-          }));
+      when(
+        () => apiClient.post<Map<String, dynamic>>(
+          '/m/api/commands',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => Success({'commandId': commandId, 'status': 'success'}),
+      );
 
       await syncEngine.initialize();
       expect(syncEngine.status, isA<SyncOffline>());
@@ -182,22 +193,26 @@ void main() {
       );
 
       // Mock server rejection
-      when(() => apiClient.post<Map<String, dynamic>>(
-            '/m/api/commands',
-            data: any(named: 'data'),
-          )).thenAnswer((_) async => Success({
-            'commandId': commandId,
-            'status': 'failure',
-            'message': 'Invalid barcode',
-          }));
+      when(
+        () => apiClient.post<Map<String, dynamic>>(
+          '/m/api/commands',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => Success({
+          'commandId': commandId,
+          'status': 'failure',
+          'message': 'Invalid barcode',
+        }),
+      );
 
       // Listen for failure
       final failureFuture = syncEngine.onCommandFailed.first;
 
       await syncEngine.initialize();
-      
+
       final failedAck = await failureFuture;
-      
+
       expect(failedAck.commandId, commandId);
       expect(failedAck.status, AckStatus.failure);
       expect(failedAck.message, 'Invalid barcode');
@@ -210,24 +225,28 @@ void main() {
     test('initialize resets stuck sending items to pending', () async {
       // Direct insertion to bypass QueueService logic
       const commandId = 'stuck-123';
-      await queueDao.enqueue(QueueItemsCompanion.insert(
-        id: commandId,
-        commandJson: '{}',
-        commandType: 'scan',
-        priority: const drift.Value(QueuePriority.medium),
-        status: const drift.Value(QueueStatus.sending), // Stuck in sending
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ));
+      await queueDao.enqueue(
+        QueueItemsCompanion.insert(
+          id: commandId,
+          commandJson: '{}',
+          commandType: 'scan',
+          priority: const drift.Value(QueuePriority.medium),
+          status: const drift.Value(QueueStatus.sending), // Stuck in sending
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
 
       // Mock API so it succeeds when picked up
-      when(() => apiClient.post<Map<String, dynamic>>(
-            '/m/api/commands',
-            data: any(named: 'data'),
-          )).thenAnswer((_) async => const Success({
-            'commandId': commandId,
-            'status': 'success',
-          }));
+      when(
+        () => apiClient.post<Map<String, dynamic>>(
+          '/m/api/commands',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            const Success({'commandId': commandId, 'status': 'success'}),
+      );
 
       await syncEngine.initialize();
       await Future.delayed(Duration.zero);
@@ -235,9 +254,13 @@ void main() {
       // It should have been picked up and processed successfully
       final count = await queueService.getPendingCount();
       expect(count, 0);
-      
-      verify(() => apiClient.post<Map<String, dynamic>>(any(), data: any(named: 'data'))).called(1);
+
+      verify(
+        () => apiClient.post<Map<String, dynamic>>(
+          any(),
+          data: any(named: 'data'),
+        ),
+      ).called(1);
     });
   });
 }
-

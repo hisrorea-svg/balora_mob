@@ -9,15 +9,11 @@ sealed class SyncStatus with _$SyncStatus {
   const factory SyncStatus.idle() = SyncIdle;
 
   /// Engine is actively syncing.
-  const factory SyncStatus.syncing({
-    required int pending,
-    required int total,
-  }) = SyncSyncing;
+  const factory SyncStatus.syncing({required int pending, required int total}) =
+      SyncSyncing;
 
   /// Engine encountered an error.
-  const factory SyncStatus.error({
-    required String message,
-  }) = SyncError;
+  const factory SyncStatus.error({required String message}) = SyncError;
 
   /// Engine is paused because device is offline.
   const factory SyncStatus.offline() = SyncOffline;

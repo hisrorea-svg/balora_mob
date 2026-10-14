@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 
 class ScannerOverlay extends StatelessWidget {
   final Rect scanWindow;
-  
-  const ScannerOverlay({
-    super.key,
-    required this.scanWindow,
-  });
+
+  const ScannerOverlay({super.key, required this.scanWindow});
 
   @override
   Widget build(BuildContext context) {
@@ -37,14 +34,12 @@ class _ScannerOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final backgroundPath = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-    
+    final backgroundPath = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+
     final cutoutPath = Path()
       ..addRRect(
-        RRect.fromRectAndRadius(
-          scanWindow,
-          Radius.circular(borderRadius),
-        ),
+        RRect.fromRectAndRadius(scanWindow, Radius.circular(borderRadius)),
       );
 
     final backgroundPaint = Paint()
@@ -68,7 +63,7 @@ class _ScannerOverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     const cornerLength = 30.0;
-    
+
     // Top Left
     canvas.drawLine(
       Offset(scanWindow.left, scanWindow.top + cornerLength),
@@ -121,7 +116,7 @@ class _ScannerOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ScannerOverlayPainter oldDelegate) {
     return oldDelegate.scanWindow != scanWindow ||
-           oldDelegate.color != color ||
-           oldDelegate.borderColor != borderColor;
+        oldDelegate.color != color ||
+        oldDelegate.borderColor != borderColor;
   }
 }

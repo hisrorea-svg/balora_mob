@@ -27,7 +27,9 @@ class InventoryFormController extends _$InventoryFormController {
     try {
       final deviceId = await authRepo.getDeviceId();
       if (deviceId == null) {
-        state = const InventoryFormState.error('Device ID not found. Please pair again.');
+        state = const InventoryFormState.error(
+          'Device ID not found. Please pair again.',
+        );
         return;
       }
 

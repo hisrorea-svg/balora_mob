@@ -23,10 +23,7 @@ class AuthRepository {
   /// Decodes QR data (either a Balora Desktop pairing URL like
   /// `https://192.168.1.15:4784/m/?code=XXXX` or a JSON payload),
   /// validates it, and sends the pairing request to `/m/api/pair`.
-  Future<Result<void>> pairWithQr(
-    String rawQr, {
-    String? deviceLabel,
-  }) async {
+  Future<Result<void>> pairWithQr(String rawQr, {String? deviceLabel}) async {
     try {
       final parsed = _extractPairingInput(rawQr, deviceLabel: deviceLabel);
       if (parsed == null) {
@@ -52,10 +49,7 @@ class AuthRepository {
       // Call the Balora Desktop mobile pairing endpoint.
       final response = await _apiClient.post<Map<String, dynamic>>(
         '/m/api/pair',
-        data: {
-          'code': parsed.code,
-          'label': parsed.label,
-        },
+        data: {'code': parsed.code, 'label': parsed.label},
       );
 
       switch (response) {
@@ -64,9 +58,11 @@ class AuthRepository {
               ? data['data'] as Map<String, dynamic>
               : data;
 
-          final sessionToken = (envelopeData['token'] as String?) ??
+          final sessionToken =
+              (envelopeData['token'] as String?) ??
               (envelopeData['sessionToken'] as String?);
-          final deviceId = (envelopeData['sessionId'] as String?) ??
+          final deviceId =
+              (envelopeData['sessionId'] as String?) ??
               (envelopeData['deviceId'] as String?);
           final serverLabel = (envelopeData['label'] as String?)?.trim();
           final expiresAtStr = envelopeData['expiresAt'] as String?;
@@ -83,10 +79,9 @@ class AuthRepository {
           }
 
           final expiresAt = DateTime.parse(expiresAtStr);
-          final effectiveName =
-              (serverLabel != null && serverLabel.isNotEmpty)
-                  ? serverLabel
-                  : parsed.label;
+          final effectiveName = (serverLabel != null && serverLabel.isNotEmpty)
+              ? serverLabel
+              : parsed.label;
 
           // Clear any old sessions.
           await _db.delete(_db.sessions).go();
@@ -137,27 +132,27 @@ class AuthRepository {
     if (trimmed.isEmpty) return null;
 
     final customLabel = deviceLabel?.trim();
-    final defaultLabel =
-        (customLabel != null && customLabel.isNotEmpty)
-            ? customLabel
-            : 'هاتف الصيدلية';
+    final defaultLabel = (customLabel != null && customLabel.isNotEmpty)
+        ? customLabel
+        : 'هاتف الصيدلية';
 
     // 1. Check if it's a URL (e.g. https://192.168.1.15:4784/m/?code=XXXX or 192.168.1.15:4784/m/?code=XXXX)
     final normalizedUrlCandidate =
         (!trimmed.startsWith('{') &&
-                !trimmed.startsWith('http://') &&
-                !trimmed.startsWith('https://') &&
-                (trimmed.contains('/m/') || trimmed.contains('code=')))
-            ? 'https://$trimmed'
-            : trimmed;
+            !trimmed.startsWith('http://') &&
+            !trimmed.startsWith('https://') &&
+            (trimmed.contains('/m/') || trimmed.contains('code=')))
+        ? 'https://$trimmed'
+        : trimmed;
     final uri = Uri.tryParse(normalizedUrlCandidate);
     if (uri != null &&
         (uri.scheme == 'http' || uri.scheme == 'https') &&
         uri.host.isNotEmpty) {
-      final code = (uri.queryParameters['code'] ??
-              uri.queryParameters['pairToken'] ??
-              uri.queryParameters['token'])
-          ?.trim();
+      final code =
+          (uri.queryParameters['code'] ??
+                  uri.queryParameters['pairToken'] ??
+                  uri.queryParameters['token'])
+              ?.trim();
       if (code != null && code.isNotEmpty) {
         final serverUrl = '${uri.scheme}://${uri.authority}';
         final labelFromUrl = uri.queryParameters['label']?.trim();
@@ -167,8 +162,8 @@ class AuthRepository {
           label: (customLabel != null && customLabel.isNotEmpty)
               ? customLabel
               : (labelFromUrl != null && labelFromUrl.isNotEmpty
-                  ? labelFromUrl
-                  : defaultLabel),
+                    ? labelFromUrl
+                    : defaultLabel),
         );
       }
     }
@@ -212,10 +207,11 @@ class AuthRepository {
             label: (customLabel != null && customLabel.isNotEmpty)
                 ? customLabel
                 : (labelJson != null && labelJson.isNotEmpty
-                    ? labelJson
-                    : defaultLabel),
-            expiresAt:
-                expiresAtStr != null ? DateTime.tryParse(expiresAtStr) : null,
+                      ? labelJson
+                      : defaultLabel),
+            expiresAt: expiresAtStr != null
+                ? DateTime.tryParse(expiresAtStr)
+                : null,
           );
         }
       }

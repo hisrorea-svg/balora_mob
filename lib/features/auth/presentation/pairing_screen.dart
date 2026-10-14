@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../app/theme.dart';
 import '../../../core/providers.dart';
+import '../../../core/result/result.dart';
+import '../../../shared/widgets/exit_confirmation_dialog.dart';
 import '../../../shared/widgets/scanner_overlay.dart';
 import 'auth_controller.dart';
 
@@ -17,9 +20,12 @@ class PairingScreen extends ConsumerStatefulWidget {
 
 class _PairingScreenState extends ConsumerState<PairingScreen> {
   late MobileScannerController _scannerController;
-  final TextEditingController _labelController =
-      TextEditingController(text: 'هاتف الصيدلية');
+  final TextEditingController _labelController = TextEditingController(
+    text: 'هاتف الصيدلية',
+  );
   bool _isProcessing = false;
+  String? _lastFailedPayload;
+  DateTime? _lastFailedScanTime;
 
   @override
   void initState() {
@@ -54,31 +60,43 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 
   void _onDetect(BarcodeCapture capture) async {
     if (_isProcessing) return;
-    
+
     final barcodes = capture.barcodes;
     if (barcodes.isEmpty || barcodes.first.rawValue == null) return;
-    
+
     final qrData = barcodes.first.rawValue!;
-    
+
     // Accept both Balora Desktop pairing URLs (/m/?code=...) and JSON payloads.
     if (!_isCandidatePairingPayload(qrData)) return;
 
+    // منع تكرار المسح لنفس الرمز المتكرر بسرعة عند الفشل (مهلة 4 ثوانٍ)
+    if (_lastFailedPayload == qrData &&
+        _lastFailedScanTime != null &&
+        DateTime.now().difference(_lastFailedScanTime!) <
+            const Duration(seconds: 4)) {
+      return;
+    }
+
     setState(() => _isProcessing = true);
-    
+
     // Haptic feedback for successful read
     HapticFeedback.vibrate();
-    
+
     // Call controller to pair
-    await ref.read(authControllerProvider.notifier).pairWithQr(
-          qrData,
-          deviceLabel: _labelController.text.trim(),
-        );
-    
-    // Check state if it failed so we can unlock scanning again
+    await ref
+        .read(authControllerProvider.notifier)
+        .pairWithQr(qrData, deviceLabel: _labelController.text.trim());
+
+    // عند حدوث خطأ، نعطي مهلة زمنية قبل السماح بالمسح مجدداً لتجنب الإزعاج وتراكم الرسائل
     if (mounted) {
       final state = ref.read(authControllerProvider);
       if (state.hasError) {
-        setState(() => _isProcessing = false);
+        _lastFailedPayload = qrData;
+        _lastFailedScanTime = DateTime.now();
+        await Future.delayed(const Duration(milliseconds: 2500));
+        if (mounted) {
+          setState(() => _isProcessing = false);
+        }
       }
     }
   }
@@ -155,15 +173,16 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 
                 if (host.isNotEmpty) {
                   final normalizedHost =
-                      (host.startsWith('http://') || host.startsWith('https://'))
-                          ? host
-                          : 'https://$host';
+                      (host.startsWith('http://') ||
+                          host.startsWith('https://'))
+                      ? host
+                      : 'https://$host';
                   final cleanHost = normalizedHost.endsWith('/')
                       ? normalizedHost.substring(0, normalizedHost.length - 1)
                       : normalizedHost;
-                  Navigator.of(ctx).pop(
-                    '$cleanHost/m/?code=${Uri.encodeQueryComponent(raw)}',
-                  );
+                  Navigator.of(
+                    ctx,
+                  ).pop('$cleanHost/m/?code=${Uri.encodeQueryComponent(raw)}');
                 }
               },
               child: const Text('اقتران'),
@@ -181,7 +200,9 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     }
 
     setState(() => _isProcessing = true);
-    await ref.read(authControllerProvider.notifier).pairWithQr(
+    await ref
+        .read(authControllerProvider.notifier)
+        .pairWithQr(
           submittedPayload,
           deviceLabel: _labelController.text.trim(),
         );
@@ -195,10 +216,36 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
     // Listen for state changes (Success / Error)
     ref.listen(authControllerProvider, (previous, next) {
       if (next.hasError) {
+        // مسح أي رسائل سابقة فوراً لمنع تراكم الإشعارات
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل الاقتران: ${next.error}'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(
+                  Icons.wifi_off_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    getErrorMessage(next.error),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: BaloraColors.error,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       } else if (!next.isLoading && !next.hasError && next.hasValue) {
@@ -216,160 +263,178 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 
     final isLoading = ref.watch(authControllerProvider).isLoading;
 
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: const Text('الاقتران بنظام Balora للكمبيوتر'),
-        actions: [
-          IconButton(
-            icon: ValueListenableBuilder(
-              valueListenable: _scannerController,
-              builder: (context, state, child) {
-                switch (state.torchState) {
-                  case TorchState.off:
-                    return const Icon(Icons.flash_off, color: Colors.grey);
-                  case TorchState.on:
-                    return const Icon(Icons.flash_on, color: Colors.amber);
-                  default:
-                    return const Icon(Icons.flash_off, color: Colors.grey);
-                }
-              },
-            ),
-            onPressed: () => _scannerController.toggleTorch(),
-          ),
-        ],
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final scanWindowSize =
-              (constraints.maxWidth * 0.62).clamp(200.0, 260.0);
-          final scanWindow = Rect.fromCenter(
-            center: Offset(
-              constraints.maxWidth / 2,
-              constraints.maxHeight * 0.47,
-            ),
-            width: scanWindowSize,
-            height: scanWindowSize,
-          );
-
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              MobileScanner(
-                controller: _scannerController,
-                onDetect: _onDetect,
-                scanWindow: scanWindow,
-                errorBuilder: (context, error) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        'تعذر تشغيل الكاميرا.\nالخطأ: ${error.errorCode}\nالتفاصيل: ${error.errorDetails?.message}',
-                        textAlign: TextAlign.center,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  );
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
+        final shouldExit = await showExitConfirmationDialog(context);
+        if (shouldExit) {
+          await SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          title: const Text('الاقتران بنظام Balora للكمبيوتر'),
+          actions: [
+            IconButton(
+              icon: ValueListenableBuilder(
+                valueListenable: _scannerController,
+                builder: (context, state, child) {
+                  switch (state.torchState) {
+                    case TorchState.off:
+                      return const Icon(Icons.flash_off, color: Colors.grey);
+                    case TorchState.on:
+                      return const Icon(Icons.flash_on, color: Colors.amber);
+                    default:
+                      return const Icon(Icons.flash_off, color: Colors.grey);
+                  }
                 },
               ),
+              onPressed: () => _scannerController.toggleTorch(),
+            ),
+          ],
+        ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final scanWindowSize = (constraints.maxWidth * 0.62).clamp(
+              200.0,
+              260.0,
+            );
+            final scanWindow = Rect.fromCenter(
+              center: Offset(
+                constraints.maxWidth / 2,
+                constraints.maxHeight * 0.47,
+              ),
+              width: scanWindowSize,
+              height: scanWindowSize,
+            );
 
-              ScannerOverlay(scanWindow: scanWindow),
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                MobileScanner(
+                  controller: _scannerController,
+                  onDetect: _onDetect,
+                  scanWindow: scanWindow,
+                  errorBuilder: (context, error) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'تعذر تشغيل الكاميرا.\nالخطأ: ${error.errorCode}\nالتفاصيل: ${error.errorDetails?.message}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
 
-              // حقل اسم الهاتف في الأعلى بعيداً عن مربع المسح
-              Positioned(
-                top: 16,
-                left: 24,
-                right: 24,
-                child: TextField(
-                  controller: _labelController,
-                  maxLength: 60,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'اسم الهاتف على الكمبيوتر',
-                    labelStyle: const TextStyle(color: Colors.white70),
-                    counterText: '',
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    filled: true,
-                    fillColor: Colors.black54,
-                    prefixIcon: const Icon(
-                      Icons.phone_android,
-                      color: Colors.white70,
-                      size: 20,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white38),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white),
+                ScannerOverlay(scanWindow: scanWindow),
+
+                // حقل اسم الهاتف في الأعلى بعيداً عن مربع المسح
+                Positioned(
+                  top: 16,
+                  left: 24,
+                  right: 24,
+                  child: TextField(
+                    controller: _labelController,
+                    maxLength: 60,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'اسم الهاتف على الكمبيوتر',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      counterText: '',
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      filled: true,
+                      fillColor: Colors.black54,
+                      prefixIcon: const Icon(
+                        Icons.phone_android,
+                        color: Colors.white70,
+                        size: 20,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.white38),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.white),
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              // التعليمات وزر الإدخال اليدوي في الأسفل بعيداً عن مربع المسح
-              Positioned(
-                bottom: 28,
-                left: 24,
-                right: 24,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'قم بمسح رمز QR المعروض\nعلى نظام Balora للكمبيوتر.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextButton.icon(
-                      onPressed: _isProcessing ? null : _showManualPairingDialog,
-                      icon: const Icon(
-                        Icons.keyboard_alt_outlined,
-                        color: Colors.white,
-                      ),
-                      label: const Text(
-                        'إدخال الرابط أو الكود يدوياً',
+                // التعليمات وزر الإدخال اليدوي في الأسفل بعيداً عن مربع المسح
+                Positioned(
+                  bottom: 28,
+                  left: 24,
+                  right: 24,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'قم بمسح رمز QR المعروض\nعلى نظام Balora للكمبيوتر.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.black54,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: _isProcessing
+                            ? null
+                            : _showManualPairingDialog,
+                        icon: const Icon(
+                          Icons.keyboard_alt_outlined,
+                          color: Colors.white,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: Colors.white38),
+                        label: const Text(
+                          'إدخال الرابط أو الكود يدوياً',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.black54,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: const BorderSide(color: Colors.white38),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-              if (isLoading)
-                Container(
-                  color: Colors.black54,
-                  child: const Center(
-                    child: CircularProgressIndicator(),
+                    ],
                   ),
                 ),
-            ],
-          );
-        },
+
+                if (isLoading)
+                  Container(
+                    color: Colors.black54,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

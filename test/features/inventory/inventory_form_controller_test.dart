@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockQueueService extends Mock implements QueueService {}
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 void main() {
@@ -45,60 +46,64 @@ void main() {
     });
 
     test('submitInventory enqueues inventoryScan command', () async {
-      when(() => queueService.enqueueCommand(
-            type: any(named: 'type'),
-            deviceId: any(named: 'deviceId'),
-            barcode: any(named: 'barcode'),
-            payload: any(named: 'payload'),
-          )).thenAnswer((_) async => 'cmd-1');
+      when(
+        () => queueService.enqueueCommand(
+          type: any(named: 'type'),
+          deviceId: any(named: 'deviceId'),
+          barcode: any(named: 'barcode'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async => 'cmd-1');
 
-      final controller = container.read(inventoryFormControllerProvider.notifier);
+      final controller = container.read(
+        inventoryFormControllerProvider.notifier,
+      );
       await controller.submitInventory(
         type: CommandType.inventoryScan,
         barcode: '123',
         quantity: 5,
       );
 
-      verify(() => queueService.enqueueCommand(
-            type: CommandType.inventoryScan,
-            deviceId: 'dev-1',
-            barcode: '123',
-            payload: {
-              'barcode': '123',
-              'quantity': 5,
-              'action': 'count',
-            },
-          )).called(1);
+      verify(
+        () => queueService.enqueueCommand(
+          type: CommandType.inventoryScan,
+          deviceId: 'dev-1',
+          barcode: '123',
+          payload: {'barcode': '123', 'quantity': 5, 'action': 'count'},
+        ),
+      ).called(1);
 
       final state = container.read(inventoryFormControllerProvider);
       expect(state, const InventoryFormState.success());
     });
 
     test('submitInventory enqueues inventorySubmit command', () async {
-      when(() => queueService.enqueueCommand(
-            type: any(named: 'type'),
-            deviceId: any(named: 'deviceId'),
-            barcode: any(named: 'barcode'),
-            payload: any(named: 'payload'),
-          )).thenAnswer((_) async => 'cmd-1');
+      when(
+        () => queueService.enqueueCommand(
+          type: any(named: 'type'),
+          deviceId: any(named: 'deviceId'),
+          barcode: any(named: 'barcode'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async => 'cmd-1');
 
-      final controller = container.read(inventoryFormControllerProvider.notifier);
+      final controller = container.read(
+        inventoryFormControllerProvider.notifier,
+      );
       await controller.submitInventory(
         type: CommandType.inventorySubmit,
         barcode: '456',
         quantity: 10,
       );
 
-      verify(() => queueService.enqueueCommand(
-            type: CommandType.inventorySubmit,
-            deviceId: 'dev-1',
-            barcode: '456',
-            payload: {
-              'barcode': '456',
-              'quantity': 10,
-              'action': 'receive',
-            },
-          )).called(1);
+      verify(
+        () => queueService.enqueueCommand(
+          type: CommandType.inventorySubmit,
+          deviceId: 'dev-1',
+          barcode: '456',
+          payload: {'barcode': '456', 'quantity': 10, 'action': 'receive'},
+        ),
+      ).called(1);
 
       final state = container.read(inventoryFormControllerProvider);
       expect(state, const InventoryFormState.success());

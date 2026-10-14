@@ -21,10 +21,7 @@ final initialLocationProvider = Provider<String>((ref) => '/splash');
 /// when [authStateProvider] flips. We proxy state changes through it.
 class _AuthRedirectListenable extends ChangeNotifier {
   _AuthRedirectListenable(this._ref) {
-    _sub = _ref.listen<bool>(
-      authStateProvider,
-      (_, _) => notifyListeners(),
-    );
+    _sub = _ref.listen<bool>(authStateProvider, (_, _) => notifyListeners());
   }
   final Ref _ref;
   late final ProviderSubscription<bool> _sub;

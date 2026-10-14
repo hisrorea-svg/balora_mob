@@ -124,9 +124,9 @@ class ProductBottomSheet extends StatelessWidget {
     if (currency.toUpperCase() == 'IQD') {
       final intPart = p.price.round();
       final formatted = intPart.toString().replaceAllMapped(
-            RegExp(r'\B(?=(\d{3})+(?!\d))'),
-            (match) => ',',
-          );
+        RegExp(r'\B(?=(\d{3})+(?!\d))'),
+        (match) => ',',
+      );
       return '$formatted د.ع';
     }
     return '${p.price.toStringAsFixed(2)} $currency';
@@ -134,7 +134,9 @@ class ProductBottomSheet extends StatelessWidget {
 
   Widget _buildProductDetails(BuildContext context, Product p) {
     final isInactive = p.category == 'موقوف';
-    final badgeBg = isInactive ? BaloraColors.warningSoft : BaloraColors.primarySoft;
+    final badgeBg = isInactive
+        ? BaloraColors.warningSoft
+        : BaloraColors.primarySoft;
     final badgeFg = isInactive ? BaloraColors.warning : BaloraColors.primary;
     final hasStock = p.quantity > 0;
 
@@ -253,8 +255,9 @@ class ProductBottomSheet extends StatelessWidget {
                       : BaloraColors.errorSoft.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: (hasStock ? BaloraColors.success : BaloraColors.error)
-                        .withValues(alpha: 0.25),
+                    color:
+                        (hasStock ? BaloraColors.success : BaloraColors.error)
+                            .withValues(alpha: 0.25),
                   ),
                 ),
                 child: Column(
@@ -344,24 +347,20 @@ class ProductBottomSheet extends StatelessWidget {
   Widget _buildNotFound(BuildContext context) {
     return Column(
       children: [
-        const Icon(
-          Icons.error_outline_rounded,
-          size: 64,
-          color: Colors.orange,
-        ),
+        const Icon(Icons.error_outline_rounded, size: 64, color: Colors.orange),
         const SizedBox(height: 16),
         Text(
           'المنتج غير موجود',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
           'الباركود: $barcode',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: BaloraColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: BaloraColors.textSecondary),
         ),
         const SizedBox(height: 24),
         if (onAddProduct != null)

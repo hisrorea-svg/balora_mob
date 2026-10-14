@@ -42,7 +42,9 @@ class _BaloraAppState extends ConsumerState<BaloraApp>
       // App came back to foreground — re-verify session with desktop and try a sync.
       ref.read(authRepositoryProvider).connectFromActiveSession().then((valid) {
         if (!valid && ref.read(authStateProvider)) {
-          ref.read(authRepositoryProvider).hasActiveSession().then((hasSession) {
+          ref.read(authRepositoryProvider).hasActiveSession().then((
+            hasSession,
+          ) {
             if (!hasSession) {
               ref.read(authStateProvider.notifier).set(false);
             }
@@ -61,14 +63,10 @@ class _BaloraAppState extends ConsumerState<BaloraApp>
       title: 'Balora Mobile',
       debugShowCheckedModeBanner: false,
       theme: BaloraTheme.light(),
-      darkTheme: BaloraTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       locale: const Locale('ar'),
-      supportedLocales: const [
-        Locale('ar'),
-        Locale('en'),
-      ],
+      supportedLocales: const [Locale('ar'), Locale('en')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

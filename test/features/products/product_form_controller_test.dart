@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockQueueService extends Mock implements QueueService {}
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 void main() {
@@ -57,22 +58,26 @@ void main() {
         quantity: 10,
       );
 
-      when(() => queueService.enqueueCommand(
-            type: any(named: 'type'),
-            deviceId: any(named: 'deviceId'),
-            barcode: any(named: 'barcode'),
-            payload: any(named: 'payload'),
-          )).thenAnswer((_) async => 'cmd-1');
+      when(
+        () => queueService.enqueueCommand(
+          type: any(named: 'type'),
+          deviceId: any(named: 'deviceId'),
+          barcode: any(named: 'barcode'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async => 'cmd-1');
 
       final controller = container.read(productFormControllerProvider.notifier);
       await controller.submitProduct(isEdit: false, product: product);
 
-      verify(() => queueService.enqueueCommand(
-            type: CommandType.addProduct,
-            deviceId: 'dev-1',
-            barcode: '123',
-            payload: product.toJson(),
-          )).called(1);
+      verify(
+        () => queueService.enqueueCommand(
+          type: CommandType.addProduct,
+          deviceId: 'dev-1',
+          barcode: '123',
+          payload: product.toJson(),
+        ),
+      ).called(1);
 
       final state = container.read(productFormControllerProvider);
       expect(state, const ProductFormState.success());
@@ -90,22 +95,26 @@ void main() {
         quantity: 10,
       );
 
-      when(() => queueService.enqueueCommand(
-            type: any(named: 'type'),
-            deviceId: any(named: 'deviceId'),
-            barcode: any(named: 'barcode'),
-            payload: any(named: 'payload'),
-          )).thenAnswer((_) async => 'cmd-1');
+      when(
+        () => queueService.enqueueCommand(
+          type: any(named: 'type'),
+          deviceId: any(named: 'deviceId'),
+          barcode: any(named: 'barcode'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async => 'cmd-1');
 
       final controller = container.read(productFormControllerProvider.notifier);
       await controller.submitProduct(isEdit: true, product: product);
 
-      verify(() => queueService.enqueueCommand(
-            type: CommandType.updateProduct,
-            deviceId: 'dev-1',
-            barcode: '123',
-            payload: product.toJson(),
-          )).called(1);
+      verify(
+        () => queueService.enqueueCommand(
+          type: CommandType.updateProduct,
+          deviceId: 'dev-1',
+          barcode: '123',
+          payload: product.toJson(),
+        ),
+      ).called(1);
 
       final state = container.read(productFormControllerProvider);
       expect(state, const ProductFormState.success());

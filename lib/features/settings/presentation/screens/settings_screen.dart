@@ -12,9 +12,7 @@ class SettingsScreen extends ConsumerWidget {
     final state = ref.watch(settingsControllerProvider);
 
     if (state.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final session = state.session;
@@ -311,7 +309,10 @@ class SettingsScreen extends ConsumerWidget {
               // listenable and routes us to `/pairing`.
               ref.read(settingsControllerProvider.notifier).unpair();
             },
-            child: const Text('إلغاء الاقتران', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'إلغاء الاقتران',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

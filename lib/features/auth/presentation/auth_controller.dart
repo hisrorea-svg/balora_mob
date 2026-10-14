@@ -15,7 +15,7 @@ class AuthController extends _$AuthController {
     if (state.isLoading) return;
 
     state = const AsyncValue.loading();
-    
+
     final repo = ref.read(authRepositoryProvider);
     final result = await repo.pairWithQr(rawQr, deviceLabel: deviceLabel);
 

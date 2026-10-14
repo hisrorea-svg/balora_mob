@@ -69,10 +69,7 @@ ApiClient apiClient(Ref ref) {
     },
   );
 
-  dio.interceptors.addAll([
-    LoggingInterceptor(),
-    RetryInterceptor(dio),
-  ]);
+  dio.interceptors.addAll([LoggingInterceptor(), RetryInterceptor(dio)]);
 
   return ApiClient(dio);
 }

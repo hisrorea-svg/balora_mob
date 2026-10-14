@@ -151,5 +151,3 @@ class QueueService {
     return command.commandId;
   }
 }
-
-

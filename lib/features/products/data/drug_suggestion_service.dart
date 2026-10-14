@@ -19,7 +19,9 @@ class DrugSuggestionService {
     if (_isLoaded || _isLoading) return;
     _isLoading = true;
     try {
-      final jsonString = await rootBundle.loadString('assets/drug_assest/drugs.json');
+      final jsonString = await rootBundle.loadString(
+        'assets/drug_assest/drugs.json',
+      );
       _suggestions = await compute(_parseDrugs, jsonString);
       _isLoaded = true;
     } catch (e) {
@@ -44,13 +46,13 @@ class DrugSuggestionService {
         .take(10)
         .toList();
   }
-  
+
   List<String> searchScientificNames(String query) {
     if (query.isEmpty) return [];
     final lowerQuery = query.toLowerCase();
     final names = <String>{};
     for (final drug in _suggestions) {
-      if (drug.scientificName != null && 
+      if (drug.scientificName != null &&
           drug.scientificName!.isNotEmpty &&
           drug.scientificName!.toLowerCase().contains(lowerQuery)) {
         names.add(drug.scientificName!);
@@ -65,7 +67,7 @@ class DrugSuggestionService {
     final lowerQuery = query.toLowerCase();
     final companies = <String>{};
     for (final drug in _suggestions) {
-      if (drug.manufacturer != null && 
+      if (drug.manufacturer != null &&
           drug.manufacturer!.isNotEmpty &&
           drug.manufacturer!.toLowerCase().contains(lowerQuery)) {
         companies.add(drug.manufacturer!);

@@ -60,9 +60,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             showDialog(
               context: context,
               barrierDismissible: false,
-              builder: (context) => const Center(
-                child: CircularProgressIndicator(),
-              ),
+              builder: (context) =>
+                  const Center(child: CircularProgressIndicator()),
             );
           }
         },
@@ -72,7 +71,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             return;
           }
           if (Navigator.canPop(context)) Navigator.pop(context);
-          
+
           ProductBottomSheet.show(
             context,
             barcode: product.barcode,
@@ -89,7 +88,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             return;
           }
           if (Navigator.canPop(context)) Navigator.pop(context);
-          
+
           ProductBottomSheet.show(
             context,
             barcode: barcode,
@@ -103,7 +102,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           if (_isProcessing && Navigator.canPop(context)) {
             Navigator.pop(context);
           }
-          
+
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -118,7 +117,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           if (mode != ScannerMode.sale && Navigator.canPop(context)) {
             Navigator.pop(context);
           }
-          
+
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -206,7 +205,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       child: Text(
                         'تعذر تشغيل الكاميرا.\nالخطأ: ${error.errorCode}\nالتفاصيل: ${error.errorDetails?.message ?? ''}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   );
@@ -243,7 +245,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           );
         },
       ),
-      floatingActionButton: (currentMode == ScannerMode.inventory ||
+      floatingActionButton:
+          (currentMode == ScannerMode.inventory ||
               currentMode == ScannerMode.receiving)
           ? Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -321,8 +324,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         style: TextStyle(
                           color: selected ? Colors.white : Colors.white70,
                           fontSize: 12,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                       ),
                     ),
@@ -335,8 +339,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       ),
     );
   }
-
-
 
   void _showLivePosResult({Product? product, String? missingBarcode}) {
     _livePosBannerTimer?.cancel();
@@ -363,9 +365,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         : 'IQD';
     if (currency.toUpperCase() == 'IQD') {
       final formatted = p.price.round().toString().replaceAllMapped(
-            RegExp(r'\B(?=(\d{3})+(?!\d))'),
-            (m) => ',',
-          );
+        RegExp(r'\B(?=(\d{3})+(?!\d))'),
+        (m) => ',',
+      );
       return '$formatted د.ع';
     }
     return '${p.price.toStringAsFixed(2)} $currency';
@@ -381,7 +383,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 32),
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -398,7 +404,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     ),
                     Text(
                       _lastMissingPosBarcode ?? '',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -433,7 +442,10 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: BaloraColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -453,9 +465,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             Text(
               p.name,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: BaloraColors.textPrimary,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: BaloraColors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Row(

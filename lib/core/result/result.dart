@@ -71,6 +71,30 @@ sealed class AppException implements Exception {
 
   @override
   String toString() => '$runtimeType: $message';
+
+  /// رسالة خطأ واضحة ومفهومة للمستخدم باللغة العربية.
+  String get userMessage {
+    // إذا كانت الرسالة الأصلية مكتوبة بالعربية بالفعل، نعيدها مباشرة
+    if (RegExp(r'[\u0600-\u06FF]').hasMatch(message)) {
+      return message;
+    }
+
+    return switch (this) {
+      NetworkException() =>
+        'تعذر الاتصال بالكمبيوتر. يرجى التأكد من تشغيل نظام Balora وتوصيل الهاتف بنفس شبكة الواي فاي.',
+      TimeoutException() =>
+        'انتهت مهلة انتظار الاستجابة من الكمبيوتر. يرجى التحقق من الشبكة وإعادة المحاولة.',
+      UnauthorizedException() => 'كود الاقتران غير صالح أو انتهت صلاحيته.',
+      ServerException(:final statusCode, :final serverMessage) =>
+        (serverMessage != null &&
+                RegExp(r'[\u0600-\u06FF]').hasMatch(serverMessage))
+            ? serverMessage
+            : 'تعذر إتمام العملية من الخادم (رمز الخطأ: $statusCode).',
+      NotFoundException() => 'الخدمة المطلوبة غير متوفرة على خادم الكمبيوتر.',
+      CacheException() => 'حدث خطأ في قاعدة البيانات المحلية للهاتف.',
+      UnknownException() => 'تعذر إتمام العملية. يرجى المحاولة مرة أخرى.',
+    };
+  }
 }
 
 /// Thrown when a network request fails.
@@ -120,4 +144,28 @@ class NotFoundException extends AppException {
 /// Thrown for unexpected or unknown errors.
 class UnknownException extends AppException {
   const UnknownException(super.message, [super.stackTrace]);
+}
+
+/// يستخرج رسالة خطأ واضحة ومفهومة باللغة العربية من أي كائن خطأ.
+String getErrorMessage(Object? error) {
+  if (error is AppException) {
+    return error.userMessage;
+  }
+  final str = error?.toString() ?? '';
+  if (RegExp(r'[\u0600-\u06FF]').hasMatch(str)) {
+    return str;
+  }
+  final lower = str.toLowerCase();
+  if (lower.contains('connection') ||
+      lower.contains('socket') ||
+      lower.contains('network') ||
+      lower.contains('failed host lookup') ||
+      lower.contains('connection refused') ||
+      lower.contains('clientexception')) {
+    return 'تعذر الاتصال بالكمبيوتر. يرجى التأكد من تشغيل نظام Balora وتوصيل الهاتف بنفس شبكة الواي فاي.';
+  }
+  if (lower.contains('timeout')) {
+    return 'انتهت مهلة انتظار الاتصال. يرجى التحقق من الشبكة وإعادة المحاولة.';
+  }
+  return 'تعذر إتمام العملية. يرجى المحاولة مرة أخرى.';
 }

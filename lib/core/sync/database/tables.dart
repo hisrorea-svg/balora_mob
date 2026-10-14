@@ -52,12 +52,10 @@ class QueueItems extends Table {
       integer().withDefault(const Constant(QueueStatus.pending))();
 
   /// Number of send attempts.
-  IntColumn get retryCount =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get retryCount => integer().withDefault(const Constant(0))();
 
   /// Maximum retries before marking as failed.
-  IntColumn get maxRetries =>
-      integer().withDefault(const Constant(5))();
+  IntColumn get maxRetries => integer().withDefault(const Constant(5))();
 
   /// Last error message (if any).
   TextColumn get lastError => text().nullable()();
@@ -97,8 +95,7 @@ class Sessions extends Table {
   TextColumn get permissions => text().withDefault(const Constant(''))();
 
   /// Whether this is the currently active session.
-  BoolColumn get isActive =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
   /// When this session was created.
   DateTimeColumn get createdAt => dateTime()();
@@ -120,8 +117,7 @@ class ScanHistory extends Table {
   TextColumn get productName => text().nullable()();
 
   /// Whether the scan was successfully synced.
-  BoolColumn get synced =>
-      boolean().withDefault(const Constant(false))();
+  BoolColumn get synced => boolean().withDefault(const Constant(false))();
 
   /// Timestamp of the scan.
   DateTimeColumn get scannedAt => dateTime()();

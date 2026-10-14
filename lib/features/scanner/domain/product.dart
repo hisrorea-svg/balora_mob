@@ -14,17 +14,15 @@ abstract class Product with _$Product {
     String? manufacturer,
 
     /// Pricing
-    required double price,       // سعر البيع (علبة)
-    required double costPrice,   // سعر الشراء (علبة)
-    required int countInBox,     // العدد في العلبة
-    required double unitPrice,   // سعر البيع (وحدة)
-
+    required double price, // سعر البيع (علبة)
+    required double costPrice, // سعر الشراء (علبة)
+    required int countInBox, // العدد في العلبة
+    required double unitPrice, // سعر البيع (وحدة)
     /// Stock
-    required int quantity,       // الكمية الافتتاحية
-    DateTime? expiryDate,        // تاريخ الانتهاء
-
+    required int quantity, // الكمية الافتتاحية
+    DateTime? expiryDate, // تاريخ الانتهاء
     /// Optional
-    String? storageLocation,     // موقع التخزين
+    String? storageLocation, // موقع التخزين
     String? description,
   }) = _Product;
 

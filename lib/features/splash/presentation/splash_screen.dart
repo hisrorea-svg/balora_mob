@@ -84,8 +84,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     // 4) Otherwise race the connection stream against a timeout.
     final completer = Completer<bool>();
-    _connSub =
-        ref.read(webSocketServiceProvider).onConnectionChanged.listen((connected) {
+    _connSub = ref.read(webSocketServiceProvider).onConnectionChanged.listen((
+      connected,
+    ) {
       if (connected && !completer.isCompleted) {
         completer.complete(true);
       }
@@ -131,16 +132,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             const SizedBox(height: 24),
             Text(
               'Balora Mobile',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               'جارٍ التحقق من الاتصال…',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).textTheme.bodySmall?.color,
-                  ),
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
             ),
             const SizedBox(height: 32),
             const CircularProgressIndicator(),

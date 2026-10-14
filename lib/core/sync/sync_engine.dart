@@ -3,7 +3,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-
 import '../../app/bootstrap.dart';
 import '../api/dio_client.dart';
 import '../api/models/ack_response.dart';
@@ -55,10 +54,10 @@ class SyncEngine {
     required ApiClient apiClient,
     required ConnectivityMonitor connectivity,
     required WebSocketService webSocket,
-  })  : _queueDao = queueDao,
-        _apiClient = apiClient,
-        _connectivity = connectivity,
-        _webSocket = webSocket;
+  }) : _queueDao = queueDao,
+       _apiClient = apiClient,
+       _connectivity = connectivity,
+       _webSocket = webSocket;
 
   /// Current sync status.
   SyncStatus get status => _currentStatus;
@@ -149,10 +148,9 @@ class SyncEngine {
           break;
         }
 
-        _updateStatus(SyncStatus.syncing(
-          pending: pending.length - i,
-          total: total,
-        ));
+        _updateStatus(
+          SyncStatus.syncing(pending: pending.length - i, total: total),
+        );
 
         await _syncItem(pending[i]);
       }
@@ -186,8 +184,7 @@ class SyncEngine {
     await _queueDao.markSending(item.id);
 
     // Parse the command JSON.
-    final commandData =
-        jsonDecode(item.commandJson) as Map<String, dynamic>;
+    final commandData = jsonDecode(item.commandJson) as Map<String, dynamic>;
 
     // POST to desktop mobile listener commands endpoint.
     final result = await _apiClient.post<Map<String, dynamic>>(
@@ -197,12 +194,11 @@ class SyncEngine {
 
     switch (result) {
       case Success(:final data):
-        final ackPayload =
-            (data['commandId'] != null && data['status'] != null)
-                ? data
-                : (data['data'] is Map<String, dynamic>
-                    ? data['data'] as Map<String, dynamic>
-                    : data);
+        final ackPayload = (data['commandId'] != null && data['status'] != null)
+            ? data
+            : (data['data'] is Map<String, dynamic>
+                  ? data['data'] as Map<String, dynamic>
+                  : data);
         final ack = AckResponse.fromJson(ackPayload);
         await _processAck(ack);
 
@@ -242,7 +238,9 @@ class SyncEngine {
           ack.message ?? 'Server rejected command',
         );
         logger.w('❌ ACK failure: ${ack.commandId} — ${ack.message}');
-        _failedCommandsController.add(ack); // Emit event for Optimistic UI revert.
+        _failedCommandsController.add(
+          ack,
+        ); // Emit event for Optimistic UI revert.
 
       case AckStatus.pending:
         // Server is still processing — do nothing, wait for final ACK.

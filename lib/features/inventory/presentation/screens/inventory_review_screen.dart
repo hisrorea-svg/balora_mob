@@ -113,14 +113,15 @@ class InventoryReviewScreen extends ConsumerWidget {
                         jsonDecode(item.commandJson) as Map<String, dynamic>;
                     final innerPayload =
                         decoded['payload'] is Map<String, dynamic>
-                            ? decoded['payload'] as Map<String, dynamic>
-                            : decoded;
+                        ? decoded['payload'] as Map<String, dynamic>
+                        : decoded;
                     final barcode =
                         (innerPayload['barcode'] as String?) ??
                         (decoded['barcode'] as String?) ??
                         'غير معروف';
                     final quantity = (innerPayload['quantity'] as int?) ?? 1;
-                    final action = (innerPayload['action'] as String?) ?? 'count';
+                    final action =
+                        (innerPayload['action'] as String?) ?? 'count';
                     final isReceiving =
                         action == 'receive' ||
                         item.commandType == 'inventory_submit' ||
@@ -169,7 +170,9 @@ class InventoryReviewScreen extends ConsumerWidget {
                                           color: isReceiving
                                               ? BaloraColors.successSoft
                                               : BaloraColors.primarySoft,
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                         child: Text(
                                           isReceiving ? 'استلام' : 'جرد',

@@ -3,8 +3,6 @@ import 'package:dio/dio.dart';
 import '../../app/bootstrap.dart';
 import '../result/result.dart';
 
-
-
 class ApiClient {
   final Dio _dio;
 
@@ -43,25 +41,16 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
   }) async {
-    return _execute(() => _dio.get<T>(
-          path,
-          queryParameters: queryParameters,
-        ));
+    return _execute(() => _dio.get<T>(path, queryParameters: queryParameters));
   }
 
   /// POST request wrapped in [Result].
-  Future<Result<T>> post<T>(
-    String path, {
-    Object? data,
-  }) async {
+  Future<Result<T>> post<T>(String path, {Object? data}) async {
     return _execute(() => _dio.post<T>(path, data: data));
   }
 
   /// PUT request wrapped in [Result].
-  Future<Result<T>> put<T>(
-    String path, {
-    Object? data,
-  }) async {
+  Future<Result<T>> put<T>(String path, {Object? data}) async {
     return _execute(() => _dio.put<T>(path, data: data));
   }
 
@@ -71,9 +60,7 @@ class ApiClient {
   }
 
   /// Executes a Dio request and maps exceptions to [Result.failure].
-  Future<Result<T>> _execute<T>(
-    Future<Response<T>> Function() request,
-  ) async {
+  Future<Result<T>> _execute<T>(Future<Response<T>> Function() request) async {
     try {
       final response = await request();
       return Success(response.data as T);
@@ -89,24 +76,23 @@ class ApiClient {
     return switch (e.type) {
       DioExceptionType.connectionTimeout ||
       DioExceptionType.sendTimeout ||
-      DioExceptionType.receiveTimeout =>
-        TimeoutException(
-          'Request timed out: ${e.requestOptions.path}',
-          st,
-        ),
+      DioExceptionType.receiveTimeout => TimeoutException(
+        'Request timed out: ${e.requestOptions.path}',
+        st,
+      ),
       DioExceptionType.badResponse => _mapStatusCode(e, st),
       DioExceptionType.connectionError => NetworkException(
-          'Connection failed: ${e.message}',
-          stackTrace: st,
-        ),
+        'Connection failed: ${e.message}',
+        stackTrace: st,
+      ),
       DioExceptionType.cancel => NetworkException(
-          'Request cancelled',
-          stackTrace: st,
-        ),
+        'Request cancelled',
+        stackTrace: st,
+      ),
       _ => UnknownException(
-          'Unknown network error: ${e.message} (${e.error})',
-          st,
-        ),
+        'Unknown network error: ${e.message} (${e.error})',
+        st,
+      ),
     };
   }
 
@@ -121,20 +107,17 @@ class ApiClient {
     final message = detail ?? e.response?.statusMessage ?? 'Unknown error';
 
     return switch (statusCode) {
-      401 => UnauthorizedException(
-          detail ?? 'Session expired or invalid',
-          st,
-        ),
+      401 => UnauthorizedException(detail ?? 'Session expired or invalid', st),
       404 => NotFoundException(
-          detail ?? 'Resource not found: ${e.requestOptions.path}',
-          st,
-        ),
+        detail ?? 'Resource not found: ${e.requestOptions.path}',
+        st,
+      ),
       _ => ServerException(
-          message,
-          statusCode: statusCode,
-          serverMessage: data?.toString(),
-          stackTrace: st,
-        ),
+        message,
+        statusCode: statusCode,
+        serverMessage: data?.toString(),
+        stackTrace: st,
+      ),
     };
   }
 }
@@ -180,16 +163,15 @@ class RetryInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final statusCode = err.response?.statusCode;
-    final isRetryable = statusCode != null &&
-        _retryableStatusCodes.contains(statusCode);
+    final isRetryable =
+        statusCode != null && _retryableStatusCodes.contains(statusCode);
 
     if (!isRetryable) {
       handler.next(err);
       return;
     }
 
-    final retryCount =
-        err.requestOptions.extra['retryCount'] as int? ?? 0;
+    final retryCount = err.requestOptions.extra['retryCount'] as int? ?? 0;
 
     if (retryCount >= _maxRetries) {
       handler.next(err);
@@ -198,7 +180,9 @@ class RetryInterceptor extends Interceptor {
 
     // Exponential backoff: 1s, 2s
     final delay = Duration(seconds: retryCount + 1);
-    logger.w('⟳ Retry ${retryCount + 1}/$_maxRetries after ${delay.inSeconds}s');
+    logger.w(
+      '⟳ Retry ${retryCount + 1}/$_maxRetries after ${delay.inSeconds}s',
+    );
     await Future<void>.delayed(delay);
 
     err.requestOptions.extra['retryCount'] = retryCount + 1;

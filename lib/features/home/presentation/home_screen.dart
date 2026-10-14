@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/providers.dart';
+import '../../../shared/widgets/exit_confirmation_dialog.dart';
 import '../../inventory/presentation/inventory_providers.dart';
 import '../../scanner/domain/scanner_mode.dart';
 import '../../scanner/presentation/scanner_mode_provider.dart';
@@ -16,130 +18,152 @@ class HomeScreen extends ConsumerWidget {
     final pendingAsync = ref.watch(pendingInventoryItemsProvider);
     final pendingCount = pendingAsync.value?.length ?? 0;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Balora Mobile'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: BaloraColors.border),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
+        final shouldExit = await showExitConfirmationDialog(
+          context,
+          pendingCount: pendingCount,
+        );
+        if (shouldExit) {
+          await SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Balora Mobile'),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: BaloraColors.border),
+          ),
+          actions: const [
+            _ConnectionChip(),
+            SizedBox(width: 4),
+            _SettingsButton(),
+            SizedBox(width: 4),
+          ],
         ),
-        actions: const [
-          _ConnectionChip(),
-          SizedBox(width: 4),
-          _SettingsButton(),
-          SizedBox(width: 4),
-        ],
-      ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 360;
-            final horizontalPad = isCompact ? 12.0 : 16.0;
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxWidth < 360;
+              final horizontalPad = isCompact ? 12.0 : 16.0;
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: horizontalPad,
-                vertical: 16,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 560),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // --- Section 1: Primary Live Scanning ---
-                      const _SectionTitle('المسح الفوري'),
-                      const SizedBox(height: 10),
-                      _PrimaryHeroActionCard(
-                        title: 'ماسح الكاشير المباشر',
-                        subtitle:
-                            'إرسال الباركود فوراً إلى فاتورة البيع المفتوحة على الكمبيوتر',
-                        icon: Icons.qr_code_scanner_rounded,
-                        onTap: () {
-                          ref
-                              .read(scannerModeNotifierProvider.notifier)
-                              .set(ScannerMode.sale);
-                          context.push('/scan');
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      _SecondaryActionRowCard(
-                        title: 'فحص السعر والرصيد',
-                        subtitle:
-                            'استعلام سريع عن سعر المنتج بالدينار والكمية المتوفرة',
-                        icon: Icons.manage_search_rounded,
-                        onTap: () {
-                          ref
-                              .read(scannerModeNotifierProvider.notifier)
-                              .set(ScannerMode.search);
-                          context.push('/scan');
-                        },
-                      ),
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPad,
+                  vertical: 16,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // --- Section 1: Primary Live Scanning ---
+                        const _SectionTitle('المسح الفوري'),
+                        const SizedBox(height: 10),
+                        _PrimaryHeroActionCard(
+                          title: 'ماسح الكاشير المباشر',
+                          subtitle:
+                              'إرسال الباركود فوراً إلى فاتورة البيع المفتوحة على الكمبيوتر',
+                          icon: Icons.qr_code_scanner_rounded,
+                          onTap: () {
+                            ref
+                                .read(scannerModeNotifierProvider.notifier)
+                                .set(ScannerMode.sale);
+                            context.push('/scan');
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _SecondaryActionRowCard(
+                          title: 'فحص السعر والرصيد',
+                          subtitle:
+                              'استعلام سريع عن سعر المنتج بالدينار والكمية المتوفرة',
+                          icon: Icons.manage_search_rounded,
+                          onTap: () {
+                            ref
+                                .read(scannerModeNotifierProvider.notifier)
+                                .set(ScannerMode.search);
+                            context.push('/scan');
+                          },
+                        ),
 
-                      const SizedBox(height: 22),
+                        const SizedBox(height: 22),
 
-                      // --- Section 2: Warehouse & Inventory Operations ---
-                      const _SectionTitle('المخزن والجرد'),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _CompactGridCard(
-                              title: 'جرد المخزون',
-                              subtitle: 'عدّ الأصناف الميداني',
-                              icon: Icons.inventory_2_outlined,
-                              onTap: () {
-                                ref
-                                    .read(scannerModeNotifierProvider.notifier)
-                                    .set(ScannerMode.inventory);
-                                context.push('/scan');
-                              },
+                        // --- Section 2: Warehouse & Inventory Operations ---
+                        const _SectionTitle('المخزن والجرد'),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _CompactGridCard(
+                                title: 'جرد المخزون',
+                                subtitle: 'عدّ الأصناف الميداني',
+                                icon: Icons.inventory_2_outlined,
+                                onTap: () {
+                                  ref
+                                      .read(
+                                        scannerModeNotifierProvider.notifier,
+                                      )
+                                      .set(ScannerMode.inventory);
+                                  context.push('/scan');
+                                },
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _CompactGridCard(
-                              title: 'استلام بضاعة',
-                              subtitle: 'تسجيل الوارد للمخزن',
-                              icon: Icons.move_to_inbox_outlined,
-                              onTap: () {
-                                ref
-                                    .read(scannerModeNotifierProvider.notifier)
-                                    .set(ScannerMode.receiving);
-                                context.push('/scan');
-                              },
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _CompactGridCard(
+                                title: 'استلام بضاعة',
+                                subtitle: 'تسجيل الوارد للمخزن',
+                                icon: Icons.move_to_inbox_outlined,
+                                onTap: () {
+                                  ref
+                                      .read(
+                                        scannerModeNotifierProvider.notifier,
+                                      )
+                                      .set(ScannerMode.receiving);
+                                  context.push('/scan');
+                                },
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      _SecondaryActionRowCard(
-                        title: 'العمليات المعلقة والمزامنة',
-                        subtitle: pendingCount > 0
-                            ? 'توجد $pendingCount عملية بانتظار المزامنة مع الكمبيوتر'
-                            : 'جميع عمليات الجرد والاستلام متزامنة',
-                        icon: Icons.sync_rounded,
-                        badgeCount: pendingCount,
-                        onTap: () => context.push('/inventory/review'),
-                      ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        _SecondaryActionRowCard(
+                          title: 'العمليات المعلقة والمزامنة',
+                          subtitle: pendingCount > 0
+                              ? 'توجد $pendingCount عملية بانتظار المزامنة مع الكمبيوتر'
+                              : 'جميع عمليات الجرد والاستلام متزامنة',
+                          icon: Icons.sync_rounded,
+                          badgeCount: pendingCount,
+                          onTap: () => context.push('/inventory/review'),
+                        ),
 
-                      const SizedBox(height: 22),
+                        const SizedBox(height: 22),
 
-                      // --- Section 3: Catalog Management ---
-                      const _SectionTitle('إدارة الأصناف'),
-                      const SizedBox(height: 10),
-                      _SecondaryActionRowCard(
-                        title: 'إضافة منتج جديد يدوياً',
-                        subtitle: 'تعريف صنف جديد وإرساله لقاعدة بيانات الصيدلية',
-                        icon: Icons.add_box_outlined,
-                        onTap: () => context.push('/products/add'),
-                      ),
-                    ],
+                        // --- Section 3: Catalog Management ---
+                        const _SectionTitle('إدارة الأصناف'),
+                        const SizedBox(height: 10),
+                        _SecondaryActionRowCard(
+                          title: 'إضافة منتج جديد يدوياً',
+                          subtitle:
+                              'تعريف صنف جديد وإرساله لقاعدة بيانات الصيدلية',
+                          icon: Icons.add_box_outlined,
+                          onTap: () => context.push('/products/add'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -421,10 +445,7 @@ class _ConnectionChip extends ConsumerWidget {
             Container(
               width: 7,
               height: 7,
-              decoration: BoxDecoration(
-                color: fgColor,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: fgColor, shape: BoxShape.circle),
             ),
             const SizedBox(width: 6),
             Text(

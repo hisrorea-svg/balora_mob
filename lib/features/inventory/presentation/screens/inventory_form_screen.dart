@@ -18,7 +18,8 @@ class InventoryFormScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<InventoryFormScreen> createState() => _InventoryFormScreenState();
+  ConsumerState<InventoryFormScreen> createState() =>
+      _InventoryFormScreenState();
 }
 
 class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
@@ -54,7 +55,9 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    ref.read(inventoryFormControllerProvider.notifier).submitInventory(
+    ref
+        .read(inventoryFormControllerProvider.notifier)
+        .submitInventory(
           type: _selectedType,
           barcode: _barcodeCtrl.text.trim(),
           quantity: int.tryParse(_quantityCtrl.text.trim()) ?? 1,

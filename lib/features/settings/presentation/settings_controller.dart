@@ -17,20 +17,14 @@ class SettingsController extends _$SettingsController {
     // Seed with the current WS latch so the card is correct on first paint,
     // instead of briefly flashing `false`.
     final webSocket = ref.read(webSocketServiceProvider);
-    return SettingsState(
-      isLoading: true,
-      isConnected: webSocket.isConnected,
-    );
+    return SettingsState(isLoading: true, isConnected: webSocket.isConnected);
   }
 
   Future<void> _loadData() async {
     final db = ref.read(appDatabaseProvider);
     final session = await db.select(db.sessions).getSingleOrNull();
 
-    state = state.copyWith(
-      isLoading: false,
-      session: session,
-    );
+    state = state.copyWith(isLoading: false, session: session);
   }
 
   void _listenToQueue() {
@@ -42,12 +36,9 @@ class SettingsController extends _$SettingsController {
   }
 
   void _listenToConnectivity() {
-    ref.listen<bool>(
-      connectionStateProvider,
-      (previous, next) {
-        state = state.copyWith(isConnected: next);
-      },
-    );
+    ref.listen<bool>(connectionStateProvider, (previous, next) {
+      state = state.copyWith(isConnected: next);
+    });
   }
 
   /// Unpairs the device, purges the offline queue (it carried the old

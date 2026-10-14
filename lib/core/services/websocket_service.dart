@@ -84,7 +84,8 @@ class WebSocketService {
       url = '$url/ws';
     }
     final sep = url.contains('?') ? '&' : '?';
-    final params = 'token=${Uri.encodeComponent(sessionToken)}'
+    final params =
+        'token=${Uri.encodeComponent(sessionToken)}'
         '${deviceId == null ? '' : '&deviceId=${Uri.encodeComponent(deviceId)}'}';
     return '$url$sep$params';
   }
@@ -325,7 +326,10 @@ class WebSocketService {
 
     _reconnectAttempts++;
     // Exponential backoff capped at [maxReconnectDelay]; never give up.
-    final seconds = (_reconnectAttempts * 2).clamp(1, _maxReconnectDelay.inSeconds);
+    final seconds = (_reconnectAttempts * 2).clamp(
+      1,
+      _maxReconnectDelay.inSeconds,
+    );
     final delay = Duration(seconds: seconds);
     logger.i(
       '🔄 Reconnecting in ${delay.inSeconds}s '

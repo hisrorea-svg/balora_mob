@@ -29,7 +29,9 @@ class ProductFormController extends _$ProductFormController {
     try {
       final deviceId = await authRepo.getDeviceId();
       if (deviceId == null) {
-        state = const ProductFormState.error('Device ID not found. Please pair again.');
+        state = const ProductFormState.error(
+          'Device ID not found. Please pair again.',
+        );
         return;
       }
 
