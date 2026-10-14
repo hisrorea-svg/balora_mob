@@ -1,41 +1,59 @@
 import 'package:flutter/material.dart';
 
-/// Balora brand & semantic color tokens aligned with Balora Desktop.
+/// Balora brand & semantic color tokens aligned with Balora Desktop Design System.
 abstract final class BaloraColors {
-  // --- Primary (Clinical Pharmacy Teal) ---
-  static const Color primary = Color(0xFF0F5E5B);
-  static const Color primaryLight = Color(0xFF147A76);
-  static const Color primaryDark = Color(0xFF0A4341);
-  static const Color primarySoft = Color(0xFFE6F2F1);
+  // --- Primary (Dark Teal - Balora Desktop Brand Core) ---
+  static const Color primary = Color(0xFF0E4B5B);
+  static const Color primaryLight = Color(0xFF146B76);
+  static const Color primaryDark = Color(0xFF082F3A);
+  static const Color primarySoft = Color(0xFFE0F2FE);
+  static const Color primaryTint = Color(0xFFE6F4F7);
 
-  // --- Secondary (Slate Teal) ---
-  static const Color secondary = Color(0xFF2B6CB0);
+  // --- Brand Accents & Glows ---
+  static const Color tealMint = Color(0xFF7CE0D1);
+  static const Color emeraldGlow = Color(0xFF0CA596);
+  static const Color secondary = Color(0xFF334155);
 
-  // --- Semantic ---
-  static const Color success = Color(0xFF14634F);
-  static const Color successSoft = Color(0xFFE5F2EC);
-  static const Color warning = Color(0xFFB45309);
+  // --- Semantic Feedback ---
+  static const Color success = Color(0xFF059669);
+  static const Color successSoft = Color(0xFFECFDF5);
+  static const Color successBorder = Color(0xFFA7F3D0);
+
+  static const Color warning = Color(0xFFD97706);
   static const Color warningSoft = Color(0xFFFEF3C7);
-  static const Color error = Color(0xFFA23B2E);
-  static const Color errorSoft = Color(0xFFF7E9E6);
-  static const Color info = Color(0xFF1E4E8C);
+  static const Color warningBorder = Color(0xFFFDE68A);
 
-  // --- Neutral ---
-  static const Color surface = Color(0xFFF5F7F6);
-  static const Color surfaceSubtle = Color(0xFFEDF1F0);
-  static const Color surfaceDark = Color(0xFF0F1716);
+  static const Color error = Color(0xFFDC2626);
+  static const Color errorSoft = Color(0xFFFEE2E2);
+  static const Color errorBorder = Color(0xFFFCA5A5);
+
+  static const Color info = Color(0xFF0284C7);
+  static const Color infoSoft = Color(0xFFE0F2FE);
+  static const Color infoBorder = Color(0xFFBAE6FD);
+
+  // --- Surfaces & Canvas ---
+  static const Color surface = Color(0xFFF1F5F9);
+  static const Color surfaceSubtle = Color(0xFFF8FAFC);
+  static const Color surfaceMuted = Color(0xFFE2E8F0);
+  static const Color surfaceDark = Color(0xFF0F172A);
   static const Color card = Color(0xFFFFFFFF);
-  static const Color cardDark = Color(0xFF182221);
-  static const Color textPrimary = Color(0xFF1D2726);
-  static const Color textSecondary = Color(0xFF5D6B69);
+  static const Color cardDark = Color(0xFF1E293B);
+
+  // --- Text (High-contrast Slate) ---
+  static const Color textPrimary = Color(0xFF0F172A);
+  static const Color textSecondary = Color(0xFF334155);
+  static const Color textMuted = Color(0xFF64748B);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
-  static const Color border = Color(0xFFD8E0DE);
-  static const Color borderDark = Color(0xFF2B3937);
+
+  // --- Borders ---
+  static const Color border = Color(0xFFCBD5E1);
+  static const Color borderSubtle = Color(0xFFE2E8F0);
+  static const Color borderDark = Color(0xFF334155);
 
   // --- Scanner ---
   static const Color scanOverlay = Color(0x99000000);
-  static const Color scanFrame = Color(0xFF0F5E5B);
-  static const Color scanSuccess = Color(0xFF14634F);
+  static const Color scanFrame = Color(0xFF0E4B5B);
+  static const Color scanSuccess = Color(0xFF059669);
 }
 
 /// Balora theme configuration.
@@ -56,7 +74,7 @@ abstract final class BaloraTheme {
       brightness: Brightness.light,
       colorScheme: baseScheme,
       scaffoldBackgroundColor: BaloraColors.surface,
-      dividerColor: BaloraColors.border,
+      dividerColor: BaloraColors.borderSubtle,
       appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -77,7 +95,7 @@ abstract final class BaloraTheme {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: BaloraColors.border),
+          side: const BorderSide(color: BaloraColors.borderSubtle),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

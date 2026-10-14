@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/theme.dart';
 import '../../../core/providers.dart';
 import '../../auth/domain/auth_repository.dart';
 
@@ -119,32 +120,83 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: BaloraColors.surface,
+      body: SafeArea(
+        child: Stack(
           children: [
-            Icon(
-              Icons.link,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Balora Mobile',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'جارٍ التحقق من الاتصال…',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).textTheme.bodySmall?.color,
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 96,
+                    height: 96,
+                    child: Image.asset(
+                      'assets/images/balora_logo.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(
+                            Icons.local_pharmacy_rounded,
+                            size: 64,
+                            color: BaloraColors.primary,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Balora',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: BaloraColors.textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'نظام إدارة الصيدليات',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: BaloraColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 36),
+                  const SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        BaloraColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'جارٍ التحقق من الاتصال بالكمبيوتر…',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: BaloraColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-            const CircularProgressIndicator(),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 16,
+              child: Center(
+                child: Text(
+                  'Balora Mobile Companion • الإصدار 1.0.7',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: BaloraColors.textMuted.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

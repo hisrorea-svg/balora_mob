@@ -28,11 +28,19 @@ Future<void> bootstrap() async {
   // Lock orientation to portrait for scanning ergonomics.
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // System UI style.
+  // Enable edge-to-edge system UI for modern Android (14/15/16) and iOS.
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  // System UI style with transparent status and navigation bars.
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarContrastEnforced: false,
     ),
   );
 

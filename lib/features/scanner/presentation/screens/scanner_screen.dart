@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -14,6 +15,8 @@ import '../scanner_mode_provider.dart';
 import '../scanner_state.dart';
 import '../widgets/product_bottom_sheet.dart';
 
+enum HeaderFlashType { none, success, error }
+
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
@@ -21,7 +24,8 @@ class ScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen>
+    with SingleTickerProviderStateMixin {
   final MobileScannerController _scannerController = MobileScannerController(
     formats: const [BarcodeFormat.all],
   );
@@ -31,11 +35,59 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   String? _lastMissingPosBarcode;
   Timer? _livePosBannerTimer;
 
+  late final AnimationController _flashController;
+  late final Animation<double> _flashAnimation;
+  HeaderFlashType _flashType = HeaderFlashType.none;
+
+  @override
+  void initState() {
+    super.initState();
+    _flashController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+
+    _flashAnimation = TweenSequence<double>([
+      // 0ms - 110ms: Fast attack flash
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 18,
+      ),
+      // 110ms - 240ms: Solid hold for clear perception
+      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 22),
+      // 240ms - 650ms: Smooth decay back to normal
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 1.0,
+          end: 0.0,
+        ).chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 60,
+      ),
+    ]).animate(_flashController);
+  }
+
   @override
   void dispose() {
     _livePosBannerTimer?.cancel();
+    _flashController.dispose();
     _scannerController.dispose();
     super.dispose();
+  }
+
+  void _triggerHeaderFlash(HeaderFlashType type) {
+    if (!mounted) return;
+    setState(() {
+      _flashType = type;
+    });
+    _flashController.forward(from: 0.0);
+    if (type == HeaderFlashType.success) {
+      HapticFeedback.lightImpact();
+    } else if (type == HeaderFlashType.error) {
+      HapticFeedback.mediumImpact();
+    }
   }
 
   void _handleBarcode(BarcodeCapture capture) {
@@ -66,6 +118,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           }
         },
         productFound: (product) {
+          _triggerHeaderFlash(HeaderFlashType.success);
           if (mode == ScannerMode.sale) {
             _showLivePosResult(product: product);
             return;
@@ -83,6 +136,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           );
         },
         productNotFound: (barcode) {
+          _triggerHeaderFlash(HeaderFlashType.error);
           if (mode == ScannerMode.sale) {
             _showLivePosResult(missingBarcode: barcode);
             return;
@@ -99,6 +153,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           );
         },
         actionQueued: (message) {
+          _triggerHeaderFlash(HeaderFlashType.success);
           if (_isProcessing && Navigator.canPop(context)) {
             Navigator.pop(context);
           }
@@ -114,6 +169,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           _resumeScanning();
         },
         error: (exception) {
+          _triggerHeaderFlash(HeaderFlashType.error);
           if (mode != ScannerMode.sale && Navigator.canPop(context)) {
             Navigator.pop(context);
           }
@@ -135,17 +191,90 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(
-          currentMode.arabicTitle,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+        title: AnimatedBuilder(
+          animation: _flashAnimation,
+          builder: (context, child) {
+            final value = _flashAnimation.value;
+            final isFlashing = value > 0.08;
+            final isSuccess = _flashType == HeaderFlashType.success;
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isFlashing) ...[
+                  Icon(
+                    isSuccess
+                        ? Icons.check_circle_rounded
+                        : Icons.cancel_rounded,
+                    color: isSuccess ? BaloraColors.tealMint : Colors.white,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  currentMode.arabicTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
-        backgroundColor: Colors.black54,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        flexibleSpace: AnimatedBuilder(
+          animation: _flashAnimation,
+          builder: (context, child) {
+            final value = _flashAnimation.value;
+            final isSuccess = _flashType == HeaderFlashType.success;
+            final isError = _flashType == HeaderFlashType.error;
+
+            final baseBg = Colors.black.withValues(alpha: 0.58);
+            final targetBg = isSuccess
+                ? const Color(0xFF047857).withValues(alpha: 0.94)
+                : isError
+                ? const Color(0xFFB91C1C).withValues(alpha: 0.94)
+                : Colors.transparent;
+
+            final activeBg = Color.lerp(baseBg, targetBg, value) ?? baseBg;
+
+            final bottomBorderColor = isSuccess
+                ? BaloraColors.tealMint.withValues(alpha: 0.88 * value)
+                : isError
+                ? const Color(0xFFFCA5A5).withValues(alpha: 0.88 * value)
+                : Colors.white.withValues(alpha: 0.08);
+
+            return Container(
+              decoration: BoxDecoration(
+                color: activeBg,
+                border: Border(
+                  bottom: BorderSide(
+                    color: bottomBorderColor,
+                    width: value > 0.05 ? 2.0 : 1.0,
+                  ),
+                ),
+                boxShadow: value > 0.05
+                    ? [
+                        BoxShadow(
+                          color:
+                              (isSuccess
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFFDC2626))
+                                  .withValues(alpha: 0.55 * value),
+                          blurRadius: 22 * value,
+                          spreadRadius: 3 * value,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+            );
+          },
+        ),
         actions: [
           IconButton(
             icon: ValueListenableBuilder(
@@ -221,7 +350,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 child: Align(
                   alignment: Alignment.topCenter,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(
+                      16,
+                      kToolbarHeight + 8,
+                      16,
+                      0,
+                    ),
                     child: _buildModeSwitcher(currentMode),
                   ),
                 ),
@@ -273,70 +407,89 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       (ScannerMode.receiving, 'استلام', Icons.move_to_inbox_outlined),
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: modes.map((entry) {
-          final (mode, label, icon) = entry;
-          final selected = mode == currentMode;
-          return Flexible(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () {
-                if (selected) return;
-                _livePosBannerTimer?.cancel();
-                setState(() {
-                  _lastLivePosProduct = null;
-                  _lastMissingPosBarcode = null;
-                });
-                ref.read(scannerModeNotifierProvider.notifier).set(mode);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: selected ? BaloraColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      icon,
-                      size: 15,
-                      color: selected ? Colors.white : Colors.white70,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: selected ? Colors.white : Colors.white70,
-                          fontSize: 12,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return AnimatedBuilder(
+      animation: _flashAnimation,
+      builder: (context, child) {
+        final value = _flashAnimation.value;
+        final isSuccess = _flashType == HeaderFlashType.success;
+
+        final borderColor = value > 0.05
+            ? (isSuccess
+                  ? BaloraColors.tealMint.withValues(alpha: 0.65 * value)
+                  : const Color(0xFFFCA5A5).withValues(alpha: 0.65 * value))
+            : Colors.white24;
+
+        return Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.68),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: borderColor,
+              width: value > 0.05 ? 1.5 : 1.0,
             ),
-          );
-        }).toList(),
-      ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: modes.map((entry) {
+              final (mode, label, icon) = entry;
+              final selected = mode == currentMode;
+              return Flexible(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () {
+                    if (selected) return;
+                    _livePosBannerTimer?.cancel();
+                    setState(() {
+                      _lastLivePosProduct = null;
+                      _lastMissingPosBarcode = null;
+                    });
+                    ref.read(scannerModeNotifierProvider.notifier).set(mode);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? BaloraColors.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          icon,
+                          size: 15,
+                          color: selected ? Colors.white : Colors.white70,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: selected ? Colors.white : Colors.white70,
+                              fontSize: 12,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 

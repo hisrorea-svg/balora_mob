@@ -2,9 +2,10 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     
     <application
-        android:label="balora_mob"
+        android:label="Balora"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="barcode"/>

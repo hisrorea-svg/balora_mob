@@ -29,7 +29,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>يستخدم التطبيق الكاميرا لمسح الباركود ورمز الاستجابة السريعة (QR) لاقتران الهاتف بجهاز الكمبيوتر وإدارة المخزون وعمليات البيع السريع.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>يتطلب التطبيق الوصول إلى الشبكة المحلية للاتصال بنظام بالورا للكمبيوتر ومزامنة فواتير البيع والجرد فورياً.</string>
+	<string>يتطلب التطبيق الوصول إلى الشبكة المحلية للاتصال بنظام Balora للكمبيوتر ومزامنة فواتير البيع والجرد فورياً.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>

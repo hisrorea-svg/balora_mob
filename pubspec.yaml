@@ -1,7 +1,7 @@
 name: balora_mob
 description: "Balora Mobile Companion — High-performance mobile client for Balora Desktop."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.7+7
 
 environment:
   sdk: ^3.12.2
@@ -68,3 +68,4 @@ flutter:
 
   assets:
     - assets/drug_assest/
+    - assets/images/

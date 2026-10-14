@@ -36,16 +36,67 @@ class HomeScreen extends ConsumerWidget {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Balora Mobile'),
+          titleSpacing: 16,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.asset(
+                  'assets/images/balora_logo.png',
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: BaloraColors.primarySoft,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.local_pharmacy_rounded,
+                      color: BaloraColors.primary,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Balora',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: BaloraColors.textPrimary,
+                      height: 1.15,
+                    ),
+                  ),
+                  Text(
+                    'نظام إدارة الصيدليات',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: BaloraColors.textMuted,
+                      height: 1.1,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
-            child: Container(height: 1, color: BaloraColors.border),
+            child: Container(height: 1, color: BaloraColors.borderSubtle),
           ),
           actions: const [
             _ConnectionChip(),
-            SizedBox(width: 4),
+            SizedBox(width: 6),
             _SettingsButton(),
-            SizedBox(width: 4),
+            SizedBox(width: 8),
           ],
         ),
         body: SafeArea(
@@ -65,48 +116,75 @@ class HomeScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // --- Section 1: Primary Live Scanning ---
-                        const _SectionTitle('المسح الفوري'),
-                        const SizedBox(height: 10),
-                        _PrimaryHeroActionCard(
-                          title: 'ماسح الكاشير المباشر',
-                          subtitle:
-                              'إرسال الباركود فوراً إلى فاتورة البيع المفتوحة على الكمبيوتر',
-                          icon: Icons.qr_code_scanner_rounded,
+                        // --- Hero Card: POS Live Barcode Scanner ---
+                        _PosHeroScannerCard(
                           onTap: () {
+                            HapticFeedback.lightImpact();
                             ref
                                 .read(scannerModeNotifierProvider.notifier)
                                 .set(ScannerMode.sale);
                             context.push('/scan');
                           },
                         ),
-                        const SizedBox(height: 10),
-                        _SecondaryActionRowCard(
-                          title: 'فحص السعر والرصيد',
-                          subtitle:
-                              'استعلام سريع عن سعر المنتج بالدينار والكمية المتوفرة',
-                          icon: Icons.manage_search_rounded,
-                          onTap: () {
-                            ref
-                                .read(scannerModeNotifierProvider.notifier)
-                                .set(ScannerMode.search);
-                            context.push('/scan');
-                          },
-                        ),
 
                         const SizedBox(height: 22),
 
-                        // --- Section 2: Warehouse & Inventory Operations ---
-                        const _SectionTitle('المخزن والجرد'),
-                        const SizedBox(height: 10),
+                        // --- Section Title: Operations Grid ---
+                        Row(
+                          children: [
+                            Container(
+                              width: 3.5,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: BaloraColors.primary,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'العمليات الميدانية',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: BaloraColors.textSecondary,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // --- 2x2 Operations Grid ---
                         Row(
                           children: [
                             Expanded(
-                              child: _CompactGridCard(
-                                title: 'جرد المخزون',
-                                subtitle: 'عدّ الأصناف الميداني',
-                                icon: Icons.inventory_2_outlined,
+                              child: _OperationGridCard(
+                                title: 'فحص السعر',
+                                subtitle: 'الاستعلام عن السعر والرصيد',
+                                icon: Icons.search_rounded,
+                                iconBg: BaloraColors.primarySoft,
+                                iconFg: BaloraColors.primary,
                                 onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  ref
+                                      .read(
+                                        scannerModeNotifierProvider.notifier,
+                                      )
+                                      .set(ScannerMode.search);
+                                  context.push('/scan');
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _OperationGridCard(
+                                title: 'جرد المخزون',
+                                subtitle: 'عدّ وتدقيق أصناف الرف',
+                                icon: Icons.inventory_2_outlined,
+                                iconBg: BaloraColors.successSoft,
+                                iconFg: BaloraColors.success,
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
                                   ref
                                       .read(
                                         scannerModeNotifierProvider.notifier,
@@ -116,13 +194,20 @@ class HomeScreen extends ConsumerWidget {
                                 },
                               ),
                             ),
-                            const SizedBox(width: 10),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
                             Expanded(
-                              child: _CompactGridCard(
+                              child: _OperationGridCard(
                                 title: 'استلام بضاعة',
                                 subtitle: 'تسجيل الوارد للمخزن',
-                                icon: Icons.move_to_inbox_outlined,
+                                icon: Icons.move_to_inbox_rounded,
+                                iconBg: BaloraColors.infoSoft,
+                                iconFg: BaloraColors.info,
                                 onTap: () {
+                                  HapticFeedback.lightImpact();
                                   ref
                                       .read(
                                         scannerModeNotifierProvider.notifier,
@@ -132,31 +217,103 @@ class HomeScreen extends ConsumerWidget {
                                 },
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _OperationGridCard(
+                                title: 'إضافة صنف',
+                                subtitle: 'تعريف دواء أو مادة جديدة',
+                                icon: Icons.add_box_outlined,
+                                iconBg: BaloraColors.warningSoft,
+                                iconFg: BaloraColors.warning,
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  context.push('/products/add');
+                                },
+                              ),
+                            ),
                           ],
-                        ),
-                        const SizedBox(height: 10),
-                        _SecondaryActionRowCard(
-                          title: 'العمليات المعلقة والمزامنة',
-                          subtitle: pendingCount > 0
-                              ? 'توجد $pendingCount عملية بانتظار المزامنة مع الكمبيوتر'
-                              : 'جميع عمليات الجرد والاستلام متزامنة',
-                          icon: Icons.sync_rounded,
-                          badgeCount: pendingCount,
-                          onTap: () => context.push('/inventory/review'),
                         ),
 
                         const SizedBox(height: 22),
 
-                        // --- Section 3: Catalog Management ---
-                        const _SectionTitle('إدارة الأصناف'),
-                        const SizedBox(height: 10),
-                        _SecondaryActionRowCard(
-                          title: 'إضافة منتج جديد يدوياً',
-                          subtitle:
-                              'تعريف صنف جديد وإرساله لقاعدة بيانات الصيدلية',
-                          icon: Icons.add_box_outlined,
-                          onTap: () => context.push('/products/add'),
+                        // --- Section Title: Sync & System Status ---
+                        Row(
+                          children: [
+                            Container(
+                              width: 3.5,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: pendingCount > 0
+                                    ? BaloraColors.warning
+                                    : BaloraColors.success,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'حالة المزامنة والربط',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: BaloraColors.textSecondary,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 12),
+
+                        // --- Live Sync & Health Card ---
+                        _SyncHealthCard(
+                          pendingCount: pendingCount,
+                          onReviewTap: () => context.push('/inventory/review'),
+                        ),
+
+                        const SizedBox(height: 28),
+
+                        // --- Subdued Brand Footer ---
+                        Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Balora Companion',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: BaloraColors.textMuted.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                child: Text(
+                                  '•',
+                                  style: TextStyle(
+                                    color: BaloraColors.textMuted.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'الإصدار 1.0.7',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: BaloraColors.textMuted.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -170,186 +327,178 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        color: BaloraColors.textSecondary,
-        letterSpacing: 0.2,
-      ),
-    );
-  }
-}
-
-/// Primary hero card for the main high-frequency POS scanner workflow.
-class _PrimaryHeroActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
+/// Primary Hero Action Card: Styled with Balora Clinical Deep Teal gradient.
+class _PosHeroScannerCard extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _PrimaryHeroActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
+  const _PosHeroScannerCard({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: BaloraColors.primary,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 13,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Colors.white70,
-                size: 16,
-              ),
-            ],
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [BaloraColors.primary, BaloraColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: BaloraColors.primaryDark.withValues(alpha: 0.22),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-/// Clean horizontal row card for structured secondary actions.
-class _SecondaryActionRowCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final int badgeCount;
-  final VoidCallback onTap;
-
-  const _SecondaryActionRowCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    this.badgeCount = 0,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: BaloraColors.primarySoft,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: BaloraColors.primary, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: Colors.white.withValues(alpha: 0.12),
+          highlightColor: Colors.white.withValues(alpha: 0.06),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Tag Badge
+                Row(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: BaloraColors.textPrimary,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3.5,
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        color: BaloraColors.textSecondary,
-                        height: 1.3,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: BaloraColors.tealMint,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          const Text(
+                            'نقطة البيع المباشرة • POS',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-              if (badgeCount > 0) ...[
-                const SizedBox(width: 8),
+                const SizedBox(height: 14),
+
+                // Main Info Row
+                Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'قارئ باركود الكاشير',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'إرسال فوري إلى فاتورة البيع المفتوحة بالكمبيوتر',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.88),
+                              fontSize: 12.5,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Action Pill / Quick Button
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
+                    horizontal: 12,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: BaloraColors.warningSoft,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '$badgeCount',
-                    style: const TextStyle(
-                      color: BaloraColors.warning,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18),
                     ),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'اضغط هنا لبدء المسح الفوري',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'فتح الكاميرا',
+                            style: TextStyle(
+                              color: BaloraColors.tealMint,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            color: BaloraColors.tealMint,
+                            size: 15,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
-              const SizedBox(width: 6),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: BaloraColors.textSecondary,
-                size: 20,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -357,63 +506,93 @@ class _SecondaryActionRowCard extends StatelessWidget {
   }
 }
 
-/// Compact 2-column card that adapts height to content without fixed aspect-ratio overflow.
-class _CompactGridCard extends StatelessWidget {
+/// Structured 2x2 Operations Grid Card matching Desktop Tile aesthetic.
+class _OperationGridCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+  final Color iconBg;
+  final Color iconFg;
   final VoidCallback onTap;
 
-  const _CompactGridCard({
+  const _OperationGridCard({
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.iconBg,
+    required this.iconFg,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: BaloraColors.primarySoft,
-                  borderRadius: BorderRadius.circular(9),
+    return Container(
+      decoration: BoxDecoration(
+        color: BaloraColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: BaloraColors.borderSubtle),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: iconBg,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: iconFg, size: 22),
+                    ),
+                    Icon(
+                      Icons.chevron_left_rounded,
+                      color: BaloraColors.textMuted.withValues(alpha: 0.6),
+                      size: 20,
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: BaloraColors.primary, size: 20),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: BaloraColors.textPrimary,
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: BaloraColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: BaloraColors.textSecondary,
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: BaloraColors.textMuted,
+                    height: 1.25,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -421,7 +600,132 @@ class _CompactGridCard extends StatelessWidget {
   }
 }
 
-/// Pill chip showing the verified connection state, matching Balora Desktop's `.chip.ok` / `.chip.bad`.
+/// Sync status and offline items health card.
+class _SyncHealthCard extends StatelessWidget {
+  final int pendingCount;
+  final VoidCallback onReviewTap;
+
+  const _SyncHealthCard({
+    required this.pendingCount,
+    required this.onReviewTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPending = pendingCount > 0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: BaloraColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasPending
+              ? BaloraColors.warningBorder
+              : BaloraColors.borderSubtle,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onReviewTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: hasPending
+                        ? BaloraColors.warningSoft
+                        : BaloraColors.successSoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    hasPending
+                        ? Icons.sync_problem_rounded
+                        : Icons.check_circle_outline_rounded,
+                    color: hasPending
+                        ? BaloraColors.warning
+                        : BaloraColors.success,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hasPending
+                            ? 'توجد $pendingCount عمليات معلقة'
+                            : 'المزامنة مكتملة',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: hasPending
+                              ? BaloraColors.warning
+                              : BaloraColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        hasPending
+                            ? 'اضغط للمراجعة والإرسال الفوري للكمبيوتر'
+                            : 'جميع عمليات الجرد والاستلام مطابقة مع السيرفر',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: BaloraColors.textSecondary,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (hasPending)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: BaloraColors.warning,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'مزامنة',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.cloud_done_rounded,
+                    color: BaloraColors.success.withValues(alpha: 0.8),
+                    size: 22,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Connection pill chip matching Balora Desktop's `.server-status.connected` indicator.
 class _ConnectionChip extends ConsumerWidget {
   const _ConnectionChip();
 
@@ -445,7 +749,19 @@ class _ConnectionChip extends ConsumerWidget {
             Container(
               width: 7,
               height: 7,
-              decoration: BoxDecoration(color: fgColor, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: fgColor,
+                shape: BoxShape.circle,
+                boxShadow: linked
+                    ? [
+                        BoxShadow(
+                          color: fgColor.withValues(alpha: 0.5),
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
             ),
             const SizedBox(width: 6),
             Text(
@@ -472,6 +788,7 @@ class _SettingsButton extends StatelessWidget {
       icon: const Icon(Icons.settings_outlined),
       onPressed: () => context.push('/settings'),
       tooltip: 'الإعدادات',
+      color: BaloraColors.textSecondary,
     );
   }
 }

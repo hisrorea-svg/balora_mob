@@ -379,7 +379,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
 
                 // التعليمات وزر الإدخال اليدوي في الأسفل بعيداً عن مربع المسح
                 Positioned(
-                  bottom: 28,
+                  bottom: 24 + MediaQuery.of(context).padding.bottom,
                   left: 24,
                   right: 24,
                   child: Column(
