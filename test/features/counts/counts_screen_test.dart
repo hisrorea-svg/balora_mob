@@ -14,6 +14,7 @@ import 'package:balora_mob/features/inventory/presentation/inventory_providers.d
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockCountApi extends Mock implements CountApi {}
@@ -92,6 +93,60 @@ void main() {
       find.textContaining('أنشئ بطاقة جرد من شاشة الجرد على الكمبيوتر'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('refreshes the list after returning from a count session', (
+    tester,
+  ) async {
+    var calls = 0;
+    final container = ProviderContainer(
+      overrides: [
+        activeCountsProvider.overrideWith((ref) async {
+          calls += 1;
+          return [
+            ActiveCount(
+              id: 'c1',
+              locationId: 'loc-1',
+              locationName: 'المخزن الرئيسي',
+              note: 'جرد دوري',
+              createdAt: null,
+              total: 120,
+              counted: calls == 1 ? 0 : 5,
+            ),
+          ];
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    final router = GoRouter(
+      initialLocation: '/counts',
+      routes: [
+        GoRoute(path: '/counts', builder: (_, _) => const CountsScreen()),
+        GoRoute(
+          path: '/counts/session',
+          builder: (_, _) =>
+              Scaffold(appBar: AppBar(title: const Text('جلسة العدّ'))),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('جُرد 0 من أصل 120 سطر'), findsOneWidget);
+
+    await tester.tap(find.text('المخزن الرئيسي'));
+    await tester.pumpAndSettle();
+    expect(find.text('جلسة العدّ'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('جُرد 5 من أصل 120 سطر'), findsOneWidget);
+    expect(calls, 2);
   });
 
   testWidgets('session screen counts a typed barcode and shows the result', (

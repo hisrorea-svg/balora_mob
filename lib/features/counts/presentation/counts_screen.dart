@@ -11,6 +11,17 @@ import 'counts_providers.dart';
 class CountsScreen extends ConsumerWidget {
   const CountsScreen({super.key});
 
+  /// Opens one count and refreshes the list on return so the progress shown
+  /// here always reflects what the session just recorded.
+  Future<void> _openCount(
+    BuildContext context,
+    WidgetRef ref,
+    ActiveCount count,
+  ) async {
+    await context.push('/counts/session', extra: count);
+    ref.invalidate(activeCountsProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final countsAsync = ref.watch(activeCountsProvider);
@@ -57,8 +68,10 @@ class CountsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(16),
                     itemCount: counts.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) =>
-                        _CountCard(count: counts[index]),
+                    itemBuilder: (context, index) => _CountCard(
+                      count: counts[index],
+                      onTap: () => _openCount(context, ref, counts[index]),
+                    ),
                   ),
                 ),
               ),
@@ -71,9 +84,10 @@ class CountsScreen extends ConsumerWidget {
 }
 
 class _CountCard extends StatelessWidget {
-  const _CountCard({required this.count});
+  const _CountCard({required this.count, required this.onTap});
 
   final ActiveCount count;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +95,7 @@ class _CountCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => context.push('/counts/session', extra: count),
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Column(
