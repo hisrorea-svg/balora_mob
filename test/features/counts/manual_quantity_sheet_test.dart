@@ -48,19 +48,23 @@ Future<void> openSheet(WidgetTester tester, CountLine line) async {
 }
 
 void main() {
-  testWidgets('one quantity field when the package equals one unit', (
+  testWidgets('keeps the packages field inactive for one-unit packages', (
     tester,
   ) async {
     await openSheet(tester, _lineSingle);
 
-    expect(find.text('الكمية (وحدة)'), findsOneWidget);
-    expect(find.text('علب'), findsNothing);
-    expect(find.text('وحدات مفردة'), findsNothing);
-    expect(find.byType(TextField), findsOneWidget);
-    expect(
-      tester.widget<TextField>(find.byType(TextField)).controller?.text,
-      '3',
+    expect(find.byType(TextField), findsNWidgets(2));
+    expect(find.text('علب'), findsOneWidget);
+    expect(find.text('وحدات مفردة'), findsOneWidget);
+
+    final packagesField = tester.widget<TextField>(
+      find.byType(TextField).first,
     );
+    final unitsField = tester.widget<TextField>(find.byType(TextField).last);
+    expect(packagesField.enabled, isFalse);
+    expect(packagesField.controller?.text, '0');
+    expect(unitsField.enabled ?? true, isTrue);
+    expect(unitsField.controller?.text, '3');
   });
 
   testWidgets('packages and loose units for multi-unit packages', (
@@ -70,11 +74,14 @@ void main() {
 
     expect(find.text('علب'), findsOneWidget);
     expect(find.text('وحدات مفردة'), findsOneWidget);
-    expect(find.text('الكمية (وحدة)'), findsNothing);
     expect(find.byType(TextField), findsNWidgets(2));
+    expect(
+      tester.widget<TextField>(find.byType(TextField).first).enabled,
+      isTrue,
+    );
   });
 
-  testWidgets('saving the single field returns packages with zero units', (
+  testWidgets('saving the units field returns packages with zero units', (
     tester,
   ) async {
     ManualQuantity? captured;
@@ -100,12 +107,12 @@ void main() {
     );
     await tester.tap(find.text('فتح'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '7');
+    await tester.enterText(find.byType(TextField).last, '7');
     await tester.tap(find.text('حفظ الكمية'));
     await tester.pumpAndSettle();
 
     expect(captured, isNotNull);
-    expect(captured!.packages, 7);
-    expect(captured!.looseUnits, 0);
+    expect(captured!.packages, 0);
+    expect(captured!.looseUnits, 7);
   });
 }

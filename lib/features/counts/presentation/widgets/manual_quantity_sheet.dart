@@ -23,8 +23,8 @@ class _ManualQuantitySheetState extends State<ManualQuantitySheet> {
   late final TextEditingController _unitsCtrl;
   String? _error;
 
-  /// When the package equals one unit the two fields are numerically identical
-  /// and only confuse the operator, so a single quantity field is shown.
+  /// When the package equals one unit the package box carries no meaning; it
+  /// stays visible but inactive and the quantity lives in the units field.
   bool get _singleField => widget.line.unitsPerPackage <= 1;
 
   @override
@@ -35,10 +35,10 @@ class _ManualQuantitySheetState extends State<ManualQuantitySheet> {
         ? widget.line.unitsPerPackage
         : 1;
     if (_singleField) {
-      _packagesCtrl = TextEditingController(
-        text: counted == null ? '0' : '$counted',
+      _packagesCtrl = TextEditingController(text: '0');
+      _unitsCtrl = TextEditingController(
+        text: counted == null ? '' : '$counted',
       );
-      _unitsCtrl = TextEditingController(text: '0');
     } else {
       _packagesCtrl = TextEditingController(
         text: counted == null ? '0' : '${counted ~/ factor}',
@@ -57,8 +57,8 @@ class _ManualQuantitySheetState extends State<ManualQuantitySheet> {
   }
 
   void _save() {
-    final packages = int.tryParse(_packagesCtrl.text.trim());
-    final units = _singleField ? 0 : int.tryParse(_unitsCtrl.text.trim());
+    final packages = _singleField ? 0 : int.tryParse(_packagesCtrl.text.trim());
+    final units = int.tryParse(_unitsCtrl.text.trim());
     if (packages == null || units == null || packages < 0 || units < 0) {
       setState(() => _error = 'أدخل أعداداً صحيحة غير سالبة.');
       return;
@@ -105,51 +105,40 @@ class _ManualQuantitySheetState extends State<ManualQuantitySheet> {
               ),
             ),
             const SizedBox(height: 14),
-            if (_singleField)
-              TextField(
-                controller: _packagesCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                textDirection: TextDirection.ltr,
-                decoration: const InputDecoration(
-                  labelText: 'الكمية (وحدة)',
-                  border: OutlineInputBorder(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _packagesCtrl,
+                    enabled: !_singleField,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    textDirection: TextDirection.ltr,
+                    decoration: const InputDecoration(
+                      labelText: 'علب',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
-              )
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _packagesCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      textDirection: TextDirection.ltr,
-                      decoration: const InputDecoration(
-                        labelText: 'علب',
-                        border: OutlineInputBorder(),
-                      ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                  child: Text('+'),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _unitsCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    textDirection: TextDirection.ltr,
+                    decoration: const InputDecoration(
+                      labelText: 'وحدات مفردة',
+                      border: OutlineInputBorder(),
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                    child: Text('+'),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _unitsCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      textDirection: TextDirection.ltr,
-                      decoration: const InputDecoration(
-                        labelText: 'وحدات مفردة',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
             if (_error != null) ...[
               const SizedBox(height: 8),
               Text(
