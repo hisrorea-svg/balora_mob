@@ -1,7 +1,7 @@
 name: balora_mob
 description: "Balora Mobile Companion — High-performance mobile client for Balora Desktop."
 publish_to: 'none'
-version: 1.0.7+7
+version: 1.1.0+8
 
 environment:
   sdk: ^3.12.2

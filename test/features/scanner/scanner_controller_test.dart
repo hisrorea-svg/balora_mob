@@ -137,67 +137,6 @@ void main() {
     );
 
     test(
-      'onBarcodeDetected in inventory mode enqueues command instantly',
-      () async {
-        container = makeContainer(mode: ScannerMode.inventory);
-
-        when(
-          () => queueService.enqueueCommand(
-            type: any(named: 'type'),
-            deviceId: any(named: 'deviceId'),
-            payload: any(named: 'payload'),
-          ),
-        ).thenAnswer((_) async => 'cmd-1');
-
-        final controller = container.read(scannerControllerProvider.notifier);
-        await controller.onBarcodeDetected('123');
-
-        verify(
-          () => queueService.enqueueCommand(
-            type: CommandType.inventoryScan,
-            deviceId: 'dev-1',
-            payload: any(named: 'payload'),
-          ),
-        ).called(1);
-
-        final state = container.read(scannerControllerProvider);
-        expect(
-          state,
-          const ScannerState.actionQueued('Inventory count queued'),
-        );
-      },
-    );
-
-    test(
-      'onBarcodeDetected in receiving mode enqueues command instantly',
-      () async {
-        container = makeContainer(mode: ScannerMode.receiving);
-
-        when(
-          () => queueService.enqueueCommand(
-            type: any(named: 'type'),
-            deviceId: any(named: 'deviceId'),
-            payload: any(named: 'payload'),
-          ),
-        ).thenAnswer((_) async => 'cmd-2');
-
-        final controller = container.read(scannerControllerProvider.notifier);
-        await controller.onBarcodeDetected('456');
-
-        verify(
-          () => queueService.enqueueCommand(
-            type: CommandType.inventorySubmit,
-            deviceId: 'dev-1',
-            payload: any(named: 'payload'),
-          ),
-        ).called(1);
-
-        final state = container.read(scannerControllerProvider);
-        expect(state, const ScannerState.actionQueued('Receiving scan queued'));
-      },
-    );
-
-    test(
       'reset() preserves same-barcode cooldown to prevent 30fps scan flood, while allowing different barcode immediately',
       () async {
         container = makeContainer(mode: ScannerMode.sale);

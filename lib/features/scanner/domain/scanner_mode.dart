@@ -8,22 +8,6 @@ enum ScannerMode {
     'فحص تفاصيل المنتج وسعره',
   ),
 
-  /// Inventory count. Queues an `InventoryCommand`.
-  inventory(
-    'Inventory',
-    'Count stock levels',
-    'جرد المخزون',
-    'تسجيل كميات جرد المخزون',
-  ),
-
-  /// Receiving items. Queues a `ReceiveCommand`.
-  receiving(
-    'Receiving',
-    'Receive new stock',
-    'استلام بضاعة',
-    'تسجيل كميات استلام البضائع',
-  ),
-
   /// Add or edit a product. Queues `AddProductCommand` or `UpdateProductCommand`.
   product(
     'Product',

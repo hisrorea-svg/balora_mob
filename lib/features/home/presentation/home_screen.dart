@@ -13,9 +13,22 @@ import '../../scanner/presentation/scanner_mode_provider.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  /// Honest placeholder for entry points whose server capabilities are not
+  /// implemented yet: the phone never fakes a successful write.
+  void _showComingSoon(BuildContext context, String title) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$title: قيد التطوير — سيتوفر في تحديث قادم.'),
+        backgroundColor: BaloraColors.warning,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingAsync = ref.watch(pendingInventoryItemsProvider);
+    final pendingAsync = ref.watch(pendingCountCommandsProvider);
     final pendingCount = pendingAsync.value?.length ?? 0;
 
     return PopScope(
@@ -185,12 +198,7 @@ class HomeScreen extends ConsumerWidget {
                                 iconFg: BaloraColors.success,
                                 onTap: () {
                                   HapticFeedback.lightImpact();
-                                  ref
-                                      .read(
-                                        scannerModeNotifierProvider.notifier,
-                                      )
-                                      .set(ScannerMode.inventory);
-                                  context.push('/scan');
+                                  context.push('/counts');
                                 },
                               ),
                             ),
@@ -208,12 +216,7 @@ class HomeScreen extends ConsumerWidget {
                                 iconFg: BaloraColors.info,
                                 onTap: () {
                                   HapticFeedback.lightImpact();
-                                  ref
-                                      .read(
-                                        scannerModeNotifierProvider.notifier,
-                                      )
-                                      .set(ScannerMode.receiving);
-                                  context.push('/scan');
+                                  _showComingSoon(context, 'استلام بضاعة');
                                 },
                               ),
                             ),
@@ -227,7 +230,7 @@ class HomeScreen extends ConsumerWidget {
                                 iconFg: BaloraColors.warning,
                                 onTap: () {
                                   HapticFeedback.lightImpact();
-                                  context.push('/products/add');
+                                  _showComingSoon(context, 'إضافة صنف');
                                 },
                               ),
                             ),
@@ -302,7 +305,7 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                'الإصدار 1.0.7',
+                                'الإصدار 1.1.0',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   color: BaloraColors.textMuted.withValues(

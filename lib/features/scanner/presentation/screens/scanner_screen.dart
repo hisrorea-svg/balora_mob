@@ -293,13 +293,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             tooltip: 'الفلاش',
             onPressed: () => _scannerController.toggleTorch(),
           ),
-          if (currentMode == ScannerMode.inventory ||
-              currentMode == ScannerMode.receiving)
-            IconButton(
-              icon: const Icon(Icons.list_alt_rounded, color: Colors.white),
-              onPressed: () => context.push('/inventory/review'),
-              tooltip: 'مراجعة المعلق',
-            ),
           IconButton(
             icon: const Icon(Icons.cameraswitch_outlined, color: Colors.white),
             tooltip: 'تبديل الكاميرا',
@@ -379,23 +372,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           );
         },
       ),
-      floatingActionButton:
-          (currentMode == ScannerMode.inventory ||
-              currentMode == ScannerMode.receiving)
-          ? Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: FloatingActionButton.extended(
-                onPressed: () => context.push('/inventory/manual'),
-                backgroundColor: BaloraColors.primary,
-                foregroundColor: Colors.white,
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                label: const Text(
-                  'إدخال يدوي',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            )
-          : null,
     );
   }
 
@@ -403,8 +379,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     const modes = [
       (ScannerMode.sale, 'الكاشير', Icons.point_of_sale_rounded),
       (ScannerMode.search, 'فحص سعر', Icons.search_rounded),
-      (ScannerMode.inventory, 'جرد', Icons.inventory_2_outlined),
-      (ScannerMode.receiving, 'استلام', Icons.move_to_inbox_outlined),
     ];
 
     return AnimatedBuilder(

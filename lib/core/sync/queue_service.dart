@@ -72,15 +72,20 @@ class QueueService {
   }
 
   /// Enqueues a generic command based on type.
+  ///
+  /// [commandId] may be supplied when a direct send already failed so the
+  /// offline retry carries the identical id; the server receipt then applies
+  /// the command at most once.
   Future<String> enqueueCommand({
     required CommandType type,
     required String deviceId,
     String? barcode,
     Map<String, dynamic>? payload,
+    String? commandId,
     int priority = QueuePriority.medium,
   }) {
     final command = Command(
-      commandId: _uuid.v4(),
+      commandId: commandId ?? _uuid.v4(),
       type: type,
       barcode: barcode,
       timestamp: DateTime.now(),
@@ -88,38 +93,6 @@ class QueueService {
       payload: payload,
     );
     return _enqueue(command, priority);
-  }
-
-  /// Enqueues an inventory scan command (high priority).
-  Future<String> enqueueInventoryScan({
-    required String barcode,
-    required String deviceId,
-    required String sessionId,
-  }) {
-    final command = Command(
-      commandId: _uuid.v4(),
-      type: CommandType.inventoryScan,
-      barcode: barcode,
-      timestamp: DateTime.now(),
-      deviceId: deviceId,
-      payload: {'sessionId': sessionId},
-    );
-    return _enqueue(command, QueuePriority.high);
-  }
-
-  /// Enqueues an inventory submission command (high priority).
-  Future<String> enqueueInventorySubmit({
-    required String deviceId,
-    required Map<String, dynamic> inventoryData,
-  }) {
-    final command = Command(
-      commandId: _uuid.v4(),
-      type: CommandType.inventorySubmit,
-      timestamp: DateTime.now(),
-      deviceId: deviceId,
-      payload: inventoryData,
-    );
-    return _enqueue(command, QueuePriority.high);
   }
 
   /// Returns the count of pending items.

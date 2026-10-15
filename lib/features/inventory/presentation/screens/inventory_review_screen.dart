@@ -12,7 +12,7 @@ class InventoryReviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingItemsAsync = ref.watch(pendingInventoryItemsProvider);
+    final pendingItemsAsync = ref.watch(pendingCountCommandsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,9 +36,9 @@ class InventoryReviewScreen extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.add_rounded),
-            tooltip: 'إدخال يدوي',
-            onPressed: () => context.push('/inventory/manual'),
+            icon: const Icon(Icons.inventory_2_outlined),
+            tooltip: 'بطاقات الجرد',
+            onPressed: () => context.push('/counts'),
           ),
         ],
       ),
@@ -78,7 +78,7 @@ class InventoryReviewScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'جميع عمليات الجرد واستلام البضاعة متزامنة مع خادم الصيدلية.',
+                          'جميع عمليات العدّ متزامنة مع خادم الصيدلية.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
@@ -88,9 +88,9 @@ class InventoryReviewScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 18),
                         OutlinedButton.icon(
-                          onPressed: () => context.push('/inventory/manual'),
-                          icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('إضافة عملية يدوية'),
+                          onPressed: () => context.push('/counts'),
+                          icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                          label: const Text('فتح بطاقات الجرد'),
                         ),
                       ],
                     ),
@@ -115,17 +115,11 @@ class InventoryReviewScreen extends ConsumerWidget {
                         decoded['payload'] is Map<String, dynamic>
                         ? decoded['payload'] as Map<String, dynamic>
                         : decoded;
-                    final barcode =
-                        (innerPayload['barcode'] as String?) ??
-                        (decoded['barcode'] as String?) ??
-                        'غير معروف';
-                    final quantity = (innerPayload['quantity'] as int?) ?? 1;
-                    final action =
-                        (innerPayload['action'] as String?) ?? 'count';
-                    final isReceiving =
-                        action == 'receive' ||
-                        item.commandType == 'inventory_submit' ||
-                        item.commandType == 'inventorySubmit';
+                    final isSet = item.commandType == 'countSet';
+                    final barcode = (decoded['barcode'] as String?) ?? '';
+                    final detail = isSet
+                        ? '${innerPayload['packages'] ?? 0} علب + ${innerPayload['looseUnits'] ?? 0} وحدة'
+                        : (barcode.isEmpty ? 'مسحة عدّ' : barcode);
 
                     return Card(
                       child: Padding(
@@ -139,18 +133,12 @@ class InventoryReviewScreen extends ConsumerWidget {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: isReceiving
-                                    ? BaloraColors.successSoft
-                                    : BaloraColors.primarySoft,
+                                color: BaloraColors.primarySoft,
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Icon(
-                                isReceiving
-                                    ? Icons.move_to_inbox_outlined
-                                    : Icons.inventory_2_outlined,
-                                color: isReceiving
-                                    ? BaloraColors.success
-                                    : BaloraColors.primary,
+                              child: const Icon(
+                                Icons.inventory_2_outlined,
+                                color: BaloraColors.primary,
                                 size: 20,
                               ),
                             ),
@@ -167,43 +155,38 @@ class InventoryReviewScreen extends ConsumerWidget {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: isReceiving
-                                              ? BaloraColors.successSoft
+                                          color: isSet
+                                              ? BaloraColors.warningSoft
                                               : BaloraColors.primarySoft,
                                           borderRadius: BorderRadius.circular(
                                             6,
                                           ),
                                         ),
                                         child: Text(
-                                          isReceiving ? 'استلام' : 'جرد',
+                                          isSet ? 'تعديل كمية' : 'مسح جرد',
                                           style: TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
-                                            color: isReceiving
-                                                ? BaloraColors.success
+                                            color: isSet
+                                                ? BaloraColors.warning
                                                 : BaloraColors.primary,
                                           ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'الكمية: $quantity',
-                                        style: const TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: BaloraColors.textPrimary,
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    barcode,
-                                    textDirection: TextDirection.ltr,
+                                    detail,
+                                    textDirection: isSet
+                                        ? TextDirection.rtl
+                                        : TextDirection.ltr,
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: BaloraColors.textSecondary,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),

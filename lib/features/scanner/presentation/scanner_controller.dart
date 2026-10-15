@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../../core/api/models/command.dart';
 import '../../../../core/providers.dart';
 import '../../../../core/result/result.dart';
 import '../../auth/domain/auth_repository.dart';
@@ -67,7 +66,6 @@ class ScannerController extends _$ScannerController {
 
       final mode = ref.read(scannerModeNotifierProvider);
       final repo = ref.read(productRepositoryProvider);
-      final queueService = ref.read(queueServiceProvider);
       final authRepo = ref.read(authRepositoryProvider);
 
       final deviceId = await authRepo.getDeviceId();
@@ -84,24 +82,6 @@ class ScannerController extends _$ScannerController {
           await _handleSearchMode(barcode, repo, authRepo, symbology: 'lookup');
         case ScannerMode.sale:
           await _handleSearchMode(barcode, repo, authRepo, symbology: 'pos');
-        case ScannerMode.inventory:
-          await queueService.enqueueCommand(
-            type: CommandType.inventoryScan,
-            deviceId: deviceId,
-            payload: {'barcode': barcode, 'timestamp': now.toIso8601String()},
-          );
-          state = const ScannerState.actionQueued('Inventory count queued');
-        case ScannerMode.receiving:
-          await queueService.enqueueCommand(
-            type: CommandType.inventorySubmit,
-            deviceId: deviceId,
-            payload: {
-              'barcode': barcode,
-              'timestamp': now.toIso8601String(),
-              'action': 'receive',
-            },
-          );
-          state = const ScannerState.actionQueued('Receiving scan queued');
         case ScannerMode.product:
           state = const ScannerState.actionQueued('Product mode selected');
       }

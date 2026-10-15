@@ -1,17 +1,43 @@
-# balora_mob
+# Balora Mobile Companion
 
-A new Flutter project.
+تطبيق أندرويد رفيق لنظام **Balora Desktop** لإدارة الصيدليات. جميع قواعد العمل
+والمخزون تبقى على الخادم المحلي؛ التطبيق واجهة مسح وعدّ وطابور إعادة إرسال فقط.
 
-## Getting Started
+## الميزات الحالية (الإصدار 1.1.0)
 
-This project is a starting point for a Flutter application.
+- قارئ باركود الكاشير: إرسال المسحة فوراً إلى فاتورة البيع المفتوحة على الكمبيوتر.
+- فحص السعر والرصيد.
+- **جرد المخزون**: بطاقات الجرد المفتوحة، مسح علبة/شريط مباشر على المسودة،
+  منتقي الدفعات عند تعددها، تعديل يدوي (علب + وحدات)، وطابور إعادة إرسال
+  عند انقطاع مؤقت داخل الشبكة.
+- مراجعة العمليات المعلقة وحالة المزامنة.
 
-A few resources to get you started if this is your first Flutter project:
+`استلام بضاعة` و`إضافة صنف` يظهران بكتلة «قيد التطوير» حتى تنفَّذ مساراتها على
+الخادم؛ لا يوجد أي نجاح وهمي.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## متطلبات خادم Balora
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+يتطلب خادم Balora Desktop مع مستمع الموبايل المفعّل (HTTPS، المنفذ 4784):
+
+- `POST /m/api/pair`، `GET /m/api/session`، `POST /m/api/scan`
+- قراءات الجرد: `GET /m/api/counts/active` و`GET /m/api/counts/{id}/summary`
+- أوامر العدّ: `count_scan` / `count_set` عبر `POST /m/api/commands`
+
+أوامر الجرد تتطلب خادماً يحتوي شرائح MS-2/MS-3 (migration 110 في مستودع
+Balora). العقد الكامل في `docs/mobile_stock_count_plan.md` بمستودع Balora.
+
+## شهادة الشبكة المحلية
+
+عميل HTTP في التطبيق يقبل شهادة الخادم المحلي المولّدة بـ
+`tools/setup-mobile-tls.ps1` (انظر `lib/core/providers.dart`)، لذلك لا حاجة
+لتثبيت شهادة على الهاتف. الشبكة المحلية فقط — لا يعتمد التطبيق على الإنترنت.
+
+## التطوير
+
+```powershell
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze
+flutter test
+flutter run -d <device>
+```

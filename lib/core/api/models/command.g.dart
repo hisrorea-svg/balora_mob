@@ -29,7 +29,7 @@ const _$CommandTypeEnumMap = {
   CommandType.addProduct: 'add_product',
   CommandType.updateProduct: 'update_product',
   CommandType.deleteProduct: 'delete_product',
-  CommandType.inventoryScan: 'inventory_scan',
-  CommandType.inventorySubmit: 'inventory_submit',
+  CommandType.countScan: 'count_scan',
+  CommandType.countSet: 'count_set',
   CommandType.posScan: 'pos_scan',
 };

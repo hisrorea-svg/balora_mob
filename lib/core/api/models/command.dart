@@ -13,10 +13,10 @@ enum CommandType {
   updateProduct,
   @JsonValue('delete_product')
   deleteProduct,
-  @JsonValue('inventory_scan')
-  inventoryScan,
-  @JsonValue('inventory_submit')
-  inventorySubmit,
+  @JsonValue('count_scan')
+  countScan,
+  @JsonValue('count_set')
+  countSet,
   @JsonValue('pos_scan')
   posScan,
 }

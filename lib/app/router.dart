@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../core/providers.dart';
 import '../features/auth/presentation/pairing_screen.dart';
+import '../features/counts/domain/count_models.dart';
+import '../features/counts/presentation/count_session_screen.dart';
+import '../features/counts/presentation/counts_screen.dart';
 import '../features/home/presentation/home_screen.dart';
-import '../features/inventory/presentation/screens/inventory_form_screen.dart';
 import '../features/inventory/presentation/screens/inventory_review_screen.dart';
 import '../features/products/presentation/screens/product_form_screen.dart';
 import '../features/scanner/domain/product.dart';
@@ -97,12 +99,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ProductFormScreen(product: product);
         },
       ),
-      // Inventory routes
+      // Stock count routes
       GoRoute(
-        path: '/inventory/manual',
-        name: 'inventory_manual',
-        builder: (context, state) => const InventoryFormScreen(),
+        path: '/counts',
+        name: 'counts',
+        builder: (context, state) => const CountsScreen(),
       ),
+      GoRoute(
+        path: '/counts/session',
+        name: 'count_session',
+        builder: (context, state) {
+          final count = state.extra;
+          if (count is! ActiveCount) return const CountsScreen();
+          return CountSessionScreen(count: count);
+        },
+      ),
+      // Inventory routes
       GoRoute(
         path: '/inventory/review',
         name: 'inventory_review',
