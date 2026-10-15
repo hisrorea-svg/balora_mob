@@ -48,10 +48,7 @@ const _snapshot = CountSnapshot(
   total: 2,
 );
 
-CountCommandResult _scanSuccess({
-  required String commandId,
-  int counted = 20,
-}) {
+CountCommandResult _scanSuccess({required String commandId, int counted = 20}) {
   return CountCommandResult(
     commandId: commandId,
     status: 'success',
@@ -109,9 +106,7 @@ void main() {
       container.read(countSessionProvider('c1'));
 
   test('refresh loads the server snapshot', () async {
-    when(
-      () => api.getCountSummary('c1'),
-    ).thenAnswer((_) async => _snapshot);
+    when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
 
     final container = makeContainer();
     await notifierFor(container).refresh();
@@ -166,7 +161,6 @@ void main() {
     expect(line.difference, -30);
     expect(state.snapshot!.summary.counted, 1);
     expect(state.snapshot!.summary.variance, 1);
-    expect(state.offlineQueued, isFalse);
     expect(state.feedback, contains('أموكسيسيلين'));
   });
 
@@ -223,164 +217,169 @@ void main() {
     expect(selection.options.last.batchNumber, 'AMX-2');
   });
 
-  test('a network failure queues the offline retry with the same commandId',
-      () async {
-    when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
-    when(
-      () => api.scan(
-        commandId: any(named: 'commandId'),
-        countId: 'c1',
-        barcode: any(named: 'barcode'),
-        batchId: any(named: 'batchId'),
-      ),
-    ).thenThrow(const NetworkException('down'));
-    when(
-      () => queueService.enqueueCommand(
-        type: any(named: 'type'),
-        deviceId: any(named: 'deviceId'),
-        barcode: any(named: 'barcode'),
-        payload: any(named: 'payload'),
-        commandId: any(named: 'commandId'),
-        priority: any(named: 'priority'),
-      ),
-    ).thenAnswer((_) async => 'queued');
+  test(
+    'a network failure queues the offline retry with the same commandId',
+    () async {
+      when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
+      when(
+        () => api.scan(
+          commandId: any(named: 'commandId'),
+          countId: 'c1',
+          barcode: any(named: 'barcode'),
+          batchId: any(named: 'batchId'),
+        ),
+      ).thenThrow(const NetworkException('down'));
+      when(
+        () => queueService.enqueueCommand(
+          type: any(named: 'type'),
+          deviceId: any(named: 'deviceId'),
+          barcode: any(named: 'barcode'),
+          payload: any(named: 'payload'),
+          commandId: any(named: 'commandId'),
+          priority: any(named: 'priority'),
+        ),
+      ).thenAnswer((_) async => 'queued');
 
-    final container = makeContainer();
-    final notifier = notifierFor(container);
-    await notifier.refresh();
-    await notifier.submitScan('AMX-UNIT');
+      final container = makeContainer();
+      final notifier = notifierFor(container);
+      await notifier.refresh();
+      await notifier.submitScan('AMX-UNIT');
 
-    final scannedId =
-        verify(
-              () => api.scan(
-                commandId: captureAny(named: 'commandId'),
-                countId: 'c1',
-                barcode: 'AMX-UNIT',
-                batchId: any(named: 'batchId'),
-              ),
-            ).captured.single
-            as String;
-    final queued = verify(
-      () => queueService.enqueueCommand(
-        type: CommandType.countScan,
-        deviceId: 'dev-1',
-        barcode: 'AMX-UNIT',
-        payload: captureAny(named: 'payload'),
-        commandId: captureAny(named: 'commandId'),
-        priority: any(named: 'priority'),
-      ),
-    ).captured;
-    expect(queued[1], scannedId);
-    expect((queued[0] as Map<String, dynamic>)['countId'], 'c1');
+      final scannedId =
+          verify(
+                () => api.scan(
+                  commandId: captureAny(named: 'commandId'),
+                  countId: 'c1',
+                  barcode: 'AMX-UNIT',
+                  batchId: any(named: 'batchId'),
+                ),
+              ).captured.single
+              as String;
+      final queued = verify(
+        () => queueService.enqueueCommand(
+          type: CommandType.countScan,
+          deviceId: 'dev-1',
+          barcode: 'AMX-UNIT',
+          payload: captureAny(named: 'payload'),
+          commandId: captureAny(named: 'commandId'),
+          priority: any(named: 'priority'),
+        ),
+      ).captured;
+      expect(queued[1], scannedId);
+      expect((queued[0] as Map<String, dynamic>)['countId'], 'c1');
 
-    final state = stateFor(container);
-    expect(state.offlineQueued, isTrue);
-    expect(state.feedback, contains('لا يوجد اتصال'));
-  });
+      final state = stateFor(container);
+      expect(state.feedback, contains('لا يوجد اتصال'));
+    },
+  );
 
-  test('an explicit batch choice resends the pending scan with the batch',
-      () async {
-    when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
-    var scanCalls = 0;
-    when(
-      () => api.scan(
-        commandId: any(named: 'commandId'),
-        countId: 'c1',
-        barcode: 'AMX-PKG',
-        batchId: any(named: 'batchId'),
-      ),
-    ).thenAnswer((invocation) async {
-      scanCalls += 1;
-      final commandId = invocation.namedArguments[#commandId] as String;
-      if (scanCalls == 1) {
-        return const CountCommandResult(
-          commandId: 'cmd-1',
-          status: 'failure',
-          message: 'هذه المادة بعدة دفعات؛ اختر الدفعة المطابقة للعلبة.',
-          data: {
-            'code': 'count_batch_selection_required',
-            'productId': 'p1',
-            'productName': 'أموكسيسيلين',
-            'batches': [
-              {
-                'batchId': 'b2',
-                'batchNumber': 'AMX-2',
-                'availableQuantity': 10,
-                'expectedQuantity': 10,
-              },
-            ],
-          },
-        );
+  test(
+    'an explicit batch choice resends the pending scan with the batch',
+    () async {
+      when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
+      var scanCalls = 0;
+      when(
+        () => api.scan(
+          commandId: any(named: 'commandId'),
+          countId: 'c1',
+          barcode: 'AMX-PKG',
+          batchId: any(named: 'batchId'),
+        ),
+      ).thenAnswer((invocation) async {
+        scanCalls += 1;
+        final commandId = invocation.namedArguments[#commandId] as String;
+        if (scanCalls == 1) {
+          return const CountCommandResult(
+            commandId: 'cmd-1',
+            status: 'failure',
+            message: 'هذه المادة بعدة دفعات؛ اختر الدفعة المطابقة للعلبة.',
+            data: {
+              'code': 'count_batch_selection_required',
+              'productId': 'p1',
+              'productName': 'أموكسيسيلين',
+              'batches': [
+                {
+                  'batchId': 'b2',
+                  'batchNumber': 'AMX-2',
+                  'availableQuantity': 10,
+                  'expectedQuantity': 10,
+                },
+              ],
+            },
+          );
+        }
+        return _scanSuccess(commandId: commandId);
+      });
+
+      final container = makeContainer();
+      final notifier = notifierFor(container);
+      await notifier.refresh();
+      await notifier.submitScan('AMX-PKG');
+      expect(stateFor(container).batchSelection, isNotNull);
+
+      notifier.resolveBatchSelection(
+        const CountBatchOption(
+          batchId: 'b2',
+          batchNumber: 'AMX-2',
+          availableQuantity: 10,
+          expectedQuantity: 10,
+        ),
+      );
+      for (var i = 0; i < 50 && scanCalls < 2; i += 1) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
-      return _scanSuccess(commandId: commandId);
-    });
 
-    final container = makeContainer();
-    final notifier = notifierFor(container);
-    await notifier.refresh();
-    await notifier.submitScan('AMX-PKG');
-    expect(stateFor(container).batchSelection, isNotNull);
+      verify(
+        () => api.scan(
+          commandId: any(named: 'commandId'),
+          countId: 'c1',
+          barcode: 'AMX-PKG',
+          batchId: 'b2',
+        ),
+      ).called(1);
+      expect(stateFor(container).batchSelection, isNull);
+    },
+  );
 
-    notifier.resolveBatchSelection(
-      const CountBatchOption(
-        batchId: 'b2',
-        batchNumber: 'AMX-2',
-        availableQuantity: 10,
-        expectedQuantity: 10,
-      ),
-    );
-    for (var i = 0; i < 50 && scanCalls < 2; i += 1) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
+  test(
+    'a successful count_set updates the absolute counted quantity',
+    () async {
+      when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
+      when(
+        () => api.setQuantity(
+          commandId: any(named: 'commandId'),
+          countId: 'c1',
+          lineId: 'l2',
+          packages: 3,
+          looseUnits: 2,
+        ),
+      ).thenAnswer(
+        (_) async => const CountCommandResult(
+          commandId: 'cmd-9',
+          status: 'success',
+          data: {
+            'countId': 'c1',
+            'lineId': 'l2',
+            'productId': 'p2',
+            'productName': 'إيبوبروفين',
+            'unitsPerPackage': 1,
+            'expectedQuantity': 10,
+            'countedQuantity': 5,
+            'difference': -5,
+          },
+        ),
+      );
 
-    verify(
-      () => api.scan(
-        commandId: any(named: 'commandId'),
-        countId: 'c1',
-        barcode: 'AMX-PKG',
-        batchId: 'b2',
-      ),
-    ).called(1);
-    expect(stateFor(container).batchSelection, isNull);
-  });
+      final container = makeContainer();
+      final notifier = notifierFor(container);
+      await notifier.refresh();
+      await notifier.submitSet(lineId: 'l2', packages: 3, looseUnits: 2);
 
-  test('a successful count_set updates the absolute counted quantity',
-      () async {
-    when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
-    when(
-      () => api.setQuantity(
-        commandId: any(named: 'commandId'),
-        countId: 'c1',
-        lineId: 'l2',
-        packages: 3,
-        looseUnits: 2,
-      ),
-    ).thenAnswer(
-      (_) async => const CountCommandResult(
-        commandId: 'cmd-9',
-        status: 'success',
-        data: {
-          'countId': 'c1',
-          'lineId': 'l2',
-          'productId': 'p2',
-          'productName': 'إيبوبروفين',
-          'unitsPerPackage': 1,
-          'expectedQuantity': 10,
-          'countedQuantity': 5,
-          'difference': -5,
-        },
-      ),
-    );
-
-    final container = makeContainer();
-    final notifier = notifierFor(container);
-    await notifier.refresh();
-    await notifier.submitSet(lineId: 'l2', packages: 3, looseUnits: 2);
-
-    final line = stateFor(
-      container,
-    ).snapshot!.lines.firstWhere((l) => l.lineId == 'l2');
-    expect(line.countedQuantity, 5);
-    expect(line.difference, -5);
-  });
+      final line = stateFor(
+        container,
+      ).snapshot!.lines.firstWhere((l) => l.lineId == 'l2');
+      expect(line.countedQuantity, 5);
+      expect(line.difference, -5);
+    },
+  );
 }

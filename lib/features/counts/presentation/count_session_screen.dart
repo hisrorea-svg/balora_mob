@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/providers.dart';
+import '../../../core/sync/database/app_database.dart';
+import '../../inventory/presentation/inventory_providers.dart';
 import '../../scanner/presentation/widgets/barcode_scanner_dialog.dart';
 import '../domain/count_models.dart';
 import 'count_session_controller.dart';
@@ -100,6 +105,19 @@ class _CountSessionScreenState extends ConsumerState<CountSessionScreen> {
       }
     });
 
+    // The offline banner follows the real queue: it appears while commands for
+    // this count wait locally and disappears as soon as the sync engine drains
+    // them; the drain also reconciles the screen with the server.
+    final pendingAsync = ref.watch(pendingCountCommandsProvider);
+    final queuedCount = _queuedForCount(pendingAsync.value);
+    ref.listen(pendingCountCommandsProvider, (previous, next) {
+      final before = _queuedForCount(previous?.value);
+      final after = _queuedForCount(next.value);
+      if (before > 0 && after == 0) {
+        _notifier.refresh();
+      }
+    });
+
     final session = ref.watch(provider);
     final snapshot = session.snapshot;
     final canCount = snapshot?.isDraft ?? false;
@@ -123,11 +141,29 @@ class _CountSessionScreenState extends ConsumerState<CountSessionScreen> {
           ),
         ],
       ),
-      body: SafeArea(child: _buildBody(session, canCount)),
+      body: SafeArea(child: _buildBody(session, canCount, queuedCount)),
     );
   }
 
-  Widget _buildBody(CountSessionState session, bool canCount) {
+  int _queuedForCount(List<QueueItemEntry>? items) {
+    if (items == null) return 0;
+    var count = 0;
+    for (final item in items) {
+      try {
+        final decoded = jsonDecode(item.commandJson) as Map<String, dynamic>;
+        final payload = decoded['payload'];
+        if (payload is Map<String, dynamic> &&
+            payload['countId'] == widget.count.id) {
+          count += 1;
+        }
+      } on FormatException {
+        // A malformed queued row is not this screen's concern.
+      }
+    }
+    return count;
+  }
+
+  Widget _buildBody(CountSessionState session, bool canCount, int queuedCount) {
     if (session.loading && session.snapshot == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -177,7 +213,11 @@ class _CountSessionScreenState extends ConsumerState<CountSessionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (session.offlineQueued) const _OfflineBanner(),
+            if (queuedCount > 0)
+              _OfflineBanner(
+                queuedCount: queuedCount,
+                onSendNow: () => ref.read(syncEngineProvider).syncNow(),
+              ),
             if (!canCount) const _NotDraftBanner(),
             _KpiStrip(summary: snapshot.summary),
             Padding(
@@ -272,7 +312,10 @@ class _CountSessionScreenState extends ConsumerState<CountSessionScreen> {
 }
 
 class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner();
+  const _OfflineBanner({required this.queuedCount, required this.onSendNow});
+
+  final int queuedCount;
+  final VoidCallback onSendNow;
 
   @override
   Widget build(BuildContext context) {
@@ -284,19 +327,33 @@ class _OfflineBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: BaloraColors.warningBorder),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.cloud_off_rounded, size: 16, color: BaloraColors.warning),
-          SizedBox(width: 8),
+          const Icon(
+            Icons.cloud_off_rounded,
+            size: 16,
+            color: BaloraColors.warning,
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'لا يوجد اتصال بالكمبيوتر — العمليات تُحفظ على الهاتف وتُرسل تلقائياً.',
-              style: TextStyle(
+              '$queuedCount عمليات بانتظار الإرسال — ستُرسل تلقائياً عند عودة الاتصال.',
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: BaloraColors.warning,
               ),
             ),
+          ),
+          TextButton(
+            onPressed: onSendNow,
+            style: TextButton.styleFrom(
+              foregroundColor: BaloraColors.warning,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('إرسال الآن'),
           ),
         ],
       ),
@@ -318,11 +375,7 @@ class _NotDraftBanner extends StatelessWidget {
       ),
       child: const Row(
         children: [
-          Icon(
-            Icons.info_outline_rounded,
-            size: 16,
-            color: BaloraColors.info,
-          ),
+          Icon(Icons.info_outline_rounded, size: 16, color: BaloraColors.info),
           SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -467,7 +520,8 @@ class _LineTile extends StatelessWidget {
                       [
                         if (line.batchNumber?.isNotEmpty == true)
                           line.batchNumber!,
-                        if (line.expiryDate != null) 'صلاحية ${line.expiryDate}',
+                        if (line.expiryDate != null)
+                          'صلاحية ${line.expiryDate}',
                         'المتوقع ${line.expectedQuantity}',
                         'المعدود $countedLabel',
                       ].join(' · '),
@@ -507,18 +561,18 @@ class _DiffChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, background, foreground) = switch (difference) {
-      null => (
-        'لم يُجرد',
-        BaloraColors.infoSoft,
-        BaloraColors.textSecondary,
-      ),
+      null => ('لم يُجرد', BaloraColors.infoSoft, BaloraColors.textSecondary),
       0 => ('مطابق', BaloraColors.successSoft, BaloraColors.success),
       final value when value < 0 => (
         'عجز ${-value}',
         BaloraColors.errorSoft,
         BaloraColors.error,
       ),
-      final value => ('زيادة $value', BaloraColors.warningSoft, BaloraColors.warning),
+      final value => (
+        'زيادة $value',
+        BaloraColors.warningSoft,
+        BaloraColors.warning,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -537,3 +591,4 @@ class _DiffChip extends StatelessWidget {
     );
   }
 }
+

@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:balora_mob/core/providers.dart';
+import 'package:balora_mob/core/sync/database/app_database.dart';
 import 'package:balora_mob/core/sync/queue_service.dart';
 import 'package:balora_mob/features/auth/domain/auth_repository.dart';
 import 'package:balora_mob/features/counts/data/count_api.dart';
@@ -6,6 +10,7 @@ import 'package:balora_mob/features/counts/domain/count_models.dart';
 import 'package:balora_mob/features/counts/presentation/count_session_screen.dart';
 import 'package:balora_mob/features/counts/presentation/counts_providers.dart';
 import 'package:balora_mob/features/counts/presentation/counts_screen.dart';
+import 'package:balora_mob/features/inventory/presentation/inventory_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -156,6 +161,69 @@ void main() {
     expect(find.textContaining('أموكسيسيلين'), findsWidgets);
 
     // Let the transient feedback timer fire so no fake timer stays pending.
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('the offline banner follows the queue and reconciles on drain', (
+    tester,
+  ) async {
+    final api = MockCountApi();
+    final queueService = MockQueueService();
+    final authRepository = MockAuthRepository();
+    when(() => authRepository.getDeviceId()).thenAnswer((_) async => 'dev-1');
+    when(() => api.getCountSummary('c1')).thenAnswer((_) async => _snapshot);
+    final queueStream = StreamController<List<QueueItemEntry>>();
+    addTearDown(queueStream.close);
+
+    final container = ProviderContainer(
+      overrides: [
+        countApiProvider.overrideWithValue(api),
+        queueServiceProvider.overrideWithValue(queueService),
+        authRepositoryProvider.overrideWithValue(authRepository),
+        pendingCountCommandsProvider.overrideWith((ref) => queueStream.stream),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      _wrap(const CountSessionScreen(count: _activeCount), container),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('بانتظار الإرسال'), findsNothing);
+
+    final queuedItem = QueueItemEntry(
+      id: 'q1',
+      commandJson: jsonEncode({
+        'commandId': 'q1',
+        'type': 'count_scan',
+        'barcode': 'AMX-PKG',
+        'payload': {'countId': 'c1'},
+      }),
+      commandType: 'countScan',
+      priority: 0,
+      status: 0,
+      retryCount: 0,
+      maxRetries: 5,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    queueStream.add([queuedItem]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('1 عمليات بانتظار الإرسال'), findsOneWidget);
+
+    // Consume the initial load call so the next count only sees the reconcile.
+    expect(verify(() => api.getCountSummary('c1')).callCount, greaterThan(0));
+
+    queueStream.add([]);
+    await tester.pump();
+    await tester.pump();
+    expect(find.textContaining('بانتظار الإرسال'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      verify(() => api.getCountSummary('c1')).callCount,
+      greaterThan(0),
+      reason: 'draining the queue must reconcile the screen with the server',
+    );
     await tester.pump(const Duration(seconds: 5));
   });
 }

@@ -24,7 +24,6 @@ class CountSessionState {
     this.feedback,
     this.feedbackIsError = false,
     this.batchSelection,
-    this.offlineQueued = false,
   });
 
   final bool loading;
@@ -34,10 +33,6 @@ class CountSessionState {
   final String? feedback;
   final bool feedbackIsError;
   final BatchSelectionRequest? batchSelection;
-
-  /// True after a command was stored locally because the server was
-  /// unreachable; the banner stays until a later send reaches the server.
-  final bool offlineQueued;
 
   CountSessionState copyWith({
     bool? loading,
@@ -50,7 +45,6 @@ class CountSessionState {
     bool? feedbackIsError,
     BatchSelectionRequest? batchSelection,
     bool clearBatchSelection = false,
-    bool? offlineQueued,
   }) {
     return CountSessionState(
       loading: loading ?? this.loading,
@@ -62,7 +56,6 @@ class CountSessionState {
       batchSelection: clearBatchSelection
           ? null
           : (batchSelection ?? this.batchSelection),
-      offlineQueued: offlineQueued ?? this.offlineQueued,
     );
   }
 }

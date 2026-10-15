@@ -37,9 +37,9 @@ class CountSession extends _$CountSession {
   Future<void> refresh() async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final snapshot = await ref.read(countApiProvider).getCountSummary(
-        _countId,
-      );
+      final snapshot = await ref
+          .read(countApiProvider)
+          .getCountSummary(_countId);
       state = state.copyWith(
         loading: false,
         snapshot: snapshot,
@@ -70,7 +70,6 @@ class CountSession extends _$CountSession {
           );
       if (result.isSuccess) {
         _applyLineResult(result);
-        state = state.copyWith(offlineQueued: false);
         _setFeedback(_scanFeedback(result), isError: false);
       } else if (result.code == 'count_batch_selection_required') {
         state = state.copyWith(
@@ -89,10 +88,7 @@ class CountSession extends _$CountSession {
         type: CommandType.countScan,
         commandId: commandId,
         barcode: barcode,
-        payload: {
-          'countId': _countId,
-          'batchId': ?batchId,
-        },
+        payload: {'countId': _countId, 'batchId': ?batchId},
       );
     } finally {
       _busy = false;
@@ -122,7 +118,6 @@ class CountSession extends _$CountSession {
           );
       if (result.isSuccess) {
         _applyLineResult(result);
-        state = state.copyWith(offlineQueued: false);
         _setFeedback(_setFeedbackMessage(result), isError: false);
       } else {
         _setFeedback(result.message ?? 'تعذر تعديل الكمية.', isError: true);
@@ -194,15 +189,16 @@ class CountSession extends _$CountSession {
   }) async {
     try {
       final deviceId = await ref.read(authRepositoryProvider).getDeviceId();
-      await ref.read(queueServiceProvider).enqueueCommand(
-        type: type,
-        deviceId: deviceId ?? 'unknown-device',
-        barcode: barcode,
-        commandId: commandId,
-        payload: payload,
-        priority: QueuePriority.high,
-      );
-      state = state.copyWith(offlineQueued: true);
+      await ref
+          .read(queueServiceProvider)
+          .enqueueCommand(
+            type: type,
+            deviceId: deviceId ?? 'unknown-device',
+            barcode: barcode,
+            commandId: commandId,
+            payload: payload,
+            priority: QueuePriority.high,
+          );
       _setFeedback(
         'لا يوجد اتصال بالكمبيوتر — حُفظت العملية وستُرسل تلقائياً.',
         isError: false,
