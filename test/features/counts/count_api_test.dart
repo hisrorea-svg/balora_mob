@@ -17,9 +17,7 @@ void main() {
 
   group('CountApi reads', () {
     test('listActiveCounts unwraps the envelope into drafts', () async {
-      when(
-        () => apiClient.get<Map<String, dynamic>>('/m/api/counts/active'),
-      ).thenAnswer(
+      when(() => apiClient.get<dynamic>('/m/api/counts/active')).thenAnswer(
         (_) async => const Success({
           'ok': true,
           'data': {
@@ -49,7 +47,7 @@ void main() {
 
     test('getCountSummary parses header, KPI and lines', () async {
       when(
-        () => apiClient.get<Map<String, dynamic>>(
+        () => apiClient.get<dynamic>(
           '/m/api/counts/c1/summary',
           queryParameters: {'limit': 200, 'offset': 0},
         ),
@@ -109,7 +107,7 @@ void main() {
 
     test('maps a Problem Details response to CountApiException', () async {
       when(
-        () => apiClient.get<Map<String, dynamic>>(
+        () => apiClient.get<dynamic>(
           '/m/api/counts/c1/summary',
           queryParameters: any(named: 'queryParameters'),
         ),
@@ -305,6 +303,55 @@ void main() {
     });
   });
 
+  group('stale server guards', () {
+    test('an HTML fallback body is refused with an explicit message', () async {
+      when(
+        () => apiClient.get<dynamic>('/m/api/counts/active'),
+      ).thenAnswer((_) async => const Success('<html>Balora PWA</html>'));
+
+      expect(
+        () => countApi.listActiveCounts(),
+        throwsA(
+          isA<CountApiException>()
+              .having((e) => e.code, 'code', 'counts_unsupported')
+              .having((e) => e.message, 'message', contains('حدّث خادم')),
+        ),
+      );
+    });
+
+    test(
+      'a canned success without line data is refused as a stale server',
+      () async {
+        when(
+          () => apiClient.post<Map<String, dynamic>>(
+            '/m/api/commands',
+            data: any(named: 'data'),
+          ),
+        ).thenAnswer(
+          (_) async => const Success({
+            'ok': true,
+            'commandId': 'cmd-x',
+            'status': 'success',
+            'data': {'type': 'count_scan', 'phoneLabel': 'هاتف'},
+          }),
+        );
+
+        expect(
+          () => countApi.scan(
+            commandId: 'cmd-x',
+            countId: 'c1',
+            barcode: 'AMX-PKG',
+          ),
+          throwsA(
+            isA<CountApiException>()
+                .having((e) => e.code, 'code', 'count_contract_mismatch')
+                .having((e) => e.message, 'message', contains('لم ينفّذ')),
+          ),
+        );
+      },
+    );
+  });
+
   group('isCountRetryableOffline', () {
     test('queues only network, timeout, and server failures', () {
       expect(isCountRetryableOffline(const NetworkException('down')), isTrue);
@@ -314,9 +361,7 @@ void main() {
         isTrue,
       );
       expect(
-        isCountRetryableOffline(
-          const ServerException('rate', statusCode: 429),
-        ),
+        isCountRetryableOffline(const ServerException('rate', statusCode: 429)),
         isFalse,
       );
       expect(

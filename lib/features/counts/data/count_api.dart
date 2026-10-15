@@ -29,10 +29,7 @@ class CountApi {
 
   /// The open drafts for the phone's session site.
   Future<List<ActiveCount>> listActiveCounts() async {
-    final result = await _apiClient.get<Map<String, dynamic>>(
-      '/m/api/counts/active',
-    );
-    final data = _unwrap(result);
+    final data = await _getCountData('/m/api/counts/active');
     final counts = data['counts'];
     if (counts is! List) return const [];
     return counts
@@ -47,11 +44,37 @@ class CountApi {
     int limit = 200,
     int offset = 0,
   }) async {
-    final result = await _apiClient.get<Map<String, dynamic>>(
+    final data = await _getCountData(
       '/m/api/counts/$countId/summary',
       queryParameters: {'limit': limit, 'offset': offset},
     );
-    return CountSnapshot.fromJson(_unwrap(result));
+    return CountSnapshot.fromJson(data);
+  }
+
+  /// Reads one count endpoint as raw JSON. A server that predates the mobile
+  /// count surface answers 200 with the PWA HTML fallback (the API paths live
+  /// under the `/m/` subtree), so a non-JSON body becomes an explicit Arabic
+  /// "update the server" error instead of a generic failure.
+  Future<Map<String, dynamic>> _getCountData(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final result = await _apiClient.get<dynamic>(
+      path,
+      queryParameters: queryParameters,
+    );
+    switch (result) {
+      case Success(:final data):
+        if (data is Map<String, dynamic>) return _unwrapData(data);
+        if (data is Map) return _unwrapData(data.cast<String, dynamic>());
+        throw const CountApiException(
+          'خادم Balora لا يدعم قراءات الجرد بعد. حدّث خادم الكمبيوتر ثم أعد المحاولة.',
+          code: 'counts_unsupported',
+          status: 200,
+        );
+      case Failure(:final exception):
+        throw _mapReadFailure(exception);
+    }
   }
 
   /// Sends one `count_scan` command; [batchId] selects the batch when the
@@ -61,17 +84,16 @@ class CountApi {
     required String countId,
     required String barcode,
     String? batchId,
-  }) {
-    return _sendCommand({
+  }) async {
+    final result = await _sendCommand({
       'commandId': commandId,
       'type': 'count_scan',
       'barcode': barcode,
       'timestamp': DateTime.now().toUtc().toIso8601String(),
-      'payload': {
-        'countId': countId,
-        'batchId': ?batchId,
-      },
+      'payload': {'countId': countId, 'batchId': ?batchId},
     });
+    _requireCountContract(result);
+    return result;
   }
 
   /// Sends one `count_set` command that sets the absolute counted quantity of
@@ -82,8 +104,8 @@ class CountApi {
     required String lineId,
     required int packages,
     required int looseUnits,
-  }) {
-    return _sendCommand({
+  }) async {
+    final result = await _sendCommand({
       'commandId': commandId,
       'type': 'count_set',
       'timestamp': DateTime.now().toUtc().toIso8601String(),
@@ -94,6 +116,21 @@ class CountApi {
         'looseUnits': looseUnits,
       },
     });
+    _requireCountContract(result);
+    return result;
+  }
+
+  /// A success ACK must carry the updated line; a server that predates MS-3
+  /// answers the old canned success without any line data, which would silently
+  /// fake a write. Refuse it with an explicit Arabic message instead.
+  void _requireCountContract(CountCommandResult result) {
+    if (!result.isSuccess) return;
+    if (result.lineId != null && result.countedQuantity != null) return;
+  throw const CountApiException(
+    'خادم Balora لم ينفّذ عملية الجرد (خادم قديم؟). حدّث خادم الكمبيوتر ثم أعد المحاولة.',
+    code: 'count_contract_mismatch',
+    status: 200,
+  );
   }
 
   Future<CountCommandResult> _sendCommand(Map<String, dynamic> body) async {
@@ -109,30 +146,31 @@ class CountApi {
     }
   }
 
-  /// Unwraps the `{ok, correlationId, data}` envelope and maps Problem Details
-  /// responses to a [CountApiException] carrying the server's Arabic detail.
-  Map<String, dynamic> _unwrap(Result<Map<String, dynamic>> result) {
-    switch (result) {
-      case Success(:final data):
-        final inner = data['data'];
-        if (inner is Map<String, dynamic>) return inner;
-        return data;
-      case Failure(:final exception):
-        if (exception is ServerException &&
-            exception.serverMessage != null &&
-            _looksLikeProblem(exception.serverMessage!)) {
-          throw CountApiException(
-            _problemDetail(exception.serverMessage!) ??
-                exception.userMessage,
-            code: _problemCode(exception.serverMessage!) ?? 'count_read_failed',
-            status: exception.statusCode,
-          );
-        }
-        throw exception;
-    }
+  /// Unwraps the `{ok, correlationId, data}` envelope of a read response.
+  Map<String, dynamic> _unwrapData(Map<String, dynamic> body) {
+    final inner = body['data'];
+    if (inner is Map<String, dynamic>) return inner;
+    if (inner is Map) return inner.cast<String, dynamic>();
+    return body;
   }
 
-  bool _looksLikeProblem(String raw) => raw.contains('"code"');
+  /// Maps a failed read to a [CountApiException] carrying the server's Arabic
+  /// Problem Details detail, or rethrows the original typed failure.
+  Object _mapReadFailure(AppException exception) {
+    if (exception is ServerException && exception.serverMessage != null) {
+      final raw = exception.serverMessage!;
+      final code = _problemCode(raw);
+      final detail = _problemDetail(raw);
+      if (code != null || detail != null) {
+        return CountApiException(
+          detail ?? exception.userMessage,
+          code: code ?? 'count_read_failed',
+          status: exception.statusCode,
+        );
+      }
+    }
+    return exception;
+  }
 
   String? _problemCode(String raw) {
     final match = RegExp(r'"code"\s*:\s*"([^"]+)"').firstMatch(raw);
