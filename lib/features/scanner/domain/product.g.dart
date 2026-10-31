@@ -22,6 +22,11 @@ _Product _$ProductFromJson(Map<String, dynamic> json) => _Product(
       : DateTime.parse(json['expiryDate'] as String),
   storageLocation: json['storageLocation'] as String?,
   description: json['description'] as String?,
+  stripBarcode: json['stripBarcode'] as String?,
+  nameEn: json['nameEn'] as String?,
+  nameAr: json['nameAr'] as String?,
+  batchNumber: json['batchNumber'] as String?,
+  costPriceUnit: (json['costPriceUnit'] as num?)?.toDouble(),
 );
 
 Map<String, dynamic> _$ProductToJson(_Product instance) => <String, dynamic>{
@@ -38,4 +43,9 @@ Map<String, dynamic> _$ProductToJson(_Product instance) => <String, dynamic>{
   'expiryDate': instance.expiryDate?.toIso8601String(),
   'storageLocation': instance.storageLocation,
   'description': instance.description,
+  'stripBarcode': instance.stripBarcode,
+  'nameEn': instance.nameEn,
+  'nameAr': instance.nameAr,
+  'batchNumber': instance.batchNumber,
+  'costPriceUnit': instance.costPriceUnit,
 };

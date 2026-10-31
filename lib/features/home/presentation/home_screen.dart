@@ -13,18 +13,6 @@ import '../../scanner/presentation/scanner_mode_provider.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  /// Honest placeholder for entry points whose server capabilities are not
-  /// implemented yet: the phone never fakes a successful write.
-  void _showComingSoon(BuildContext context, String title) {
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$title: قيد التطوير — سيتوفر في تحديث قادم.'),
-        backgroundColor: BaloraColors.warning,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -210,13 +198,13 @@ class HomeScreen extends ConsumerWidget {
                             Expanded(
                               child: _OperationGridCard(
                                 title: 'استلام بضاعة',
-                                subtitle: 'تسجيل الوارد للمخزن',
-                                icon: Icons.move_to_inbox_rounded,
+                                subtitle: 'إدخال وجبات المخزن',
+                                icon: Icons.local_shipping_rounded,
                                 iconBg: BaloraColors.infoSoft,
                                 iconFg: BaloraColors.info,
                                 onTap: () {
                                   HapticFeedback.lightImpact();
-                                  _showComingSoon(context, 'استلام بضاعة');
+                                  context.push('/drafts/entry');
                                 },
                               ),
                             ),
@@ -224,13 +212,13 @@ class HomeScreen extends ConsumerWidget {
                             Expanded(
                               child: _OperationGridCard(
                                 title: 'إضافة صنف',
-                                subtitle: 'تعريف دواء أو مادة جديدة',
-                                icon: Icons.add_box_outlined,
-                                iconBg: BaloraColors.warningSoft,
-                                iconFg: BaloraColors.warning,
+                                subtitle: 'تعريف بطاقة صنف جديد',
+                                icon: Icons.post_add_rounded,
+                                iconBg: BaloraColors.primarySoft,
+                                iconFg: BaloraColors.primary,
                                 onTap: () {
                                   HapticFeedback.lightImpact();
-                                  _showComingSoon(context, 'إضافة صنف');
+                                  context.push('/products/add');
                                 },
                               ),
                             ),

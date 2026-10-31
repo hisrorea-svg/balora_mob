@@ -19,7 +19,8 @@ mixin _$Product {
  String get barcode; String get name; String? get scientificName; String get category; String? get manufacturer;/// Pricing
  double get price; double get costPrice; int get countInBox; double get unitPrice;/// Stock
  int get quantity; DateTime? get expiryDate;/// Optional
- String? get storageLocation; String? get description;
+ String? get storageLocation; String? get description;/// Staging & Pharmacy Fields
+ String? get stripBarcode; String? get nameEn; String? get nameAr; String? get batchNumber; double? get costPriceUnit;
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -33,20 +34,20 @@ $ProductCopyWith<Product> get copyWith => _$ProductCopyWithImpl<Product>(this as
 @override
 bool operator ==(Object other) {
   final _this = this as Product;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Product&&(identical(other.barcode, _this.barcode) || other.barcode == _this.barcode)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.scientificName, _this.scientificName) || other.scientificName == _this.scientificName)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.manufacturer, _this.manufacturer) || other.manufacturer == _this.manufacturer)&&(identical(other.price, _this.price) || other.price == _this.price)&&(identical(other.costPrice, _this.costPrice) || other.costPrice == _this.costPrice)&&(identical(other.countInBox, _this.countInBox) || other.countInBox == _this.countInBox)&&(identical(other.unitPrice, _this.unitPrice) || other.unitPrice == _this.unitPrice)&&(identical(other.quantity, _this.quantity) || other.quantity == _this.quantity)&&(identical(other.expiryDate, _this.expiryDate) || other.expiryDate == _this.expiryDate)&&(identical(other.storageLocation, _this.storageLocation) || other.storageLocation == _this.storageLocation)&&(identical(other.description, _this.description) || other.description == _this.description));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Product&&(identical(other.barcode, _this.barcode) || other.barcode == _this.barcode)&&(identical(other.name, _this.name) || other.name == _this.name)&&(identical(other.scientificName, _this.scientificName) || other.scientificName == _this.scientificName)&&(identical(other.category, _this.category) || other.category == _this.category)&&(identical(other.manufacturer, _this.manufacturer) || other.manufacturer == _this.manufacturer)&&(identical(other.price, _this.price) || other.price == _this.price)&&(identical(other.costPrice, _this.costPrice) || other.costPrice == _this.costPrice)&&(identical(other.countInBox, _this.countInBox) || other.countInBox == _this.countInBox)&&(identical(other.unitPrice, _this.unitPrice) || other.unitPrice == _this.unitPrice)&&(identical(other.quantity, _this.quantity) || other.quantity == _this.quantity)&&(identical(other.expiryDate, _this.expiryDate) || other.expiryDate == _this.expiryDate)&&(identical(other.storageLocation, _this.storageLocation) || other.storageLocation == _this.storageLocation)&&(identical(other.description, _this.description) || other.description == _this.description)&&(identical(other.stripBarcode, _this.stripBarcode) || other.stripBarcode == _this.stripBarcode)&&(identical(other.nameEn, _this.nameEn) || other.nameEn == _this.nameEn)&&(identical(other.nameAr, _this.nameAr) || other.nameAr == _this.nameAr)&&(identical(other.batchNumber, _this.batchNumber) || other.batchNumber == _this.batchNumber)&&(identical(other.costPriceUnit, _this.costPriceUnit) || other.costPriceUnit == _this.costPriceUnit));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as Product;
-  return Object.hash(runtimeType,_this.barcode,_this.name,_this.scientificName,_this.category,_this.manufacturer,_this.price,_this.costPrice,_this.countInBox,_this.unitPrice,_this.quantity,_this.expiryDate,_this.storageLocation,_this.description);
+  return Object.hash(runtimeType,_this.barcode,_this.name,_this.scientificName,_this.category,_this.manufacturer,_this.price,_this.costPrice,_this.countInBox,_this.unitPrice,_this.quantity,_this.expiryDate,_this.storageLocation,_this.description,_this.stripBarcode,_this.nameEn,_this.nameAr,_this.batchNumber,_this.costPriceUnit);
 }
 
 @override
 String toString() {
   final _this = this as Product;
-  return 'Product(barcode: ${_this.barcode}, name: ${_this.name}, scientificName: ${_this.scientificName}, category: ${_this.category}, manufacturer: ${_this.manufacturer}, price: ${_this.price}, costPrice: ${_this.costPrice}, countInBox: ${_this.countInBox}, unitPrice: ${_this.unitPrice}, quantity: ${_this.quantity}, expiryDate: ${_this.expiryDate}, storageLocation: ${_this.storageLocation}, description: ${_this.description})';
+  return 'Product(barcode: ${_this.barcode}, name: ${_this.name}, scientificName: ${_this.scientificName}, category: ${_this.category}, manufacturer: ${_this.manufacturer}, price: ${_this.price}, costPrice: ${_this.costPrice}, countInBox: ${_this.countInBox}, unitPrice: ${_this.unitPrice}, quantity: ${_this.quantity}, expiryDate: ${_this.expiryDate}, storageLocation: ${_this.storageLocation}, description: ${_this.description}, stripBarcode: ${_this.stripBarcode}, nameEn: ${_this.nameEn}, nameAr: ${_this.nameAr}, batchNumber: ${_this.batchNumber}, costPriceUnit: ${_this.costPriceUnit})';
 }
 
 
@@ -57,7 +58,7 @@ abstract mixin class $ProductCopyWith<$Res>  {
   factory $ProductCopyWith(Product value, $Res Function(Product) _then) = _$ProductCopyWithImpl;
 @useResult
 $Res call({
- String barcode, String name, String? scientificName, String category, String? manufacturer, double price, double costPrice, int countInBox, double unitPrice, int quantity, DateTime? expiryDate, String? storageLocation, String? description
+ String barcode, String name, String? scientificName, String category, String? manufacturer, double price, double costPrice, int countInBox, double unitPrice, int quantity, DateTime? expiryDate, String? storageLocation, String? description, String? stripBarcode, String? nameEn, String? nameAr, String? batchNumber, double? costPriceUnit
 });
 
 
@@ -74,7 +75,7 @@ class _$ProductCopyWithImpl<$Res>
 
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? barcode = null,Object? name = null,Object? scientificName = freezed,Object? category = null,Object? manufacturer = freezed,Object? price = null,Object? costPrice = null,Object? countInBox = null,Object? unitPrice = null,Object? quantity = null,Object? expiryDate = freezed,Object? storageLocation = freezed,Object? description = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? barcode = null,Object? name = null,Object? scientificName = freezed,Object? category = null,Object? manufacturer = freezed,Object? price = null,Object? costPrice = null,Object? countInBox = null,Object? unitPrice = null,Object? quantity = null,Object? expiryDate = freezed,Object? storageLocation = freezed,Object? description = freezed,Object? stripBarcode = freezed,Object? nameEn = freezed,Object? nameAr = freezed,Object? batchNumber = freezed,Object? costPriceUnit = freezed,}) {
   return _then(Product(
 barcode: null == barcode ? _self.barcode : barcode // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -89,7 +90,12 @@ as double,quantity: null == quantity ? _self.quantity : quantity // ignore: cast
 as int,expiryDate: freezed == expiryDate ? _self.expiryDate : expiryDate // ignore: cast_nullable_to_non_nullable
 as DateTime?,storageLocation: freezed == storageLocation ? _self.storageLocation : storageLocation // ignore: cast_nullable_to_non_nullable
 as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,stripBarcode: freezed == stripBarcode ? _self.stripBarcode : stripBarcode // ignore: cast_nullable_to_non_nullable
+as String?,nameEn: freezed == nameEn ? _self.nameEn : nameEn // ignore: cast_nullable_to_non_nullable
+as String?,nameAr: freezed == nameAr ? _self.nameAr : nameAr // ignore: cast_nullable_to_non_nullable
+as String?,batchNumber: freezed == batchNumber ? _self.batchNumber : batchNumber // ignore: cast_nullable_to_non_nullable
+as String?,costPriceUnit: freezed == costPriceUnit ? _self.costPriceUnit : costPriceUnit // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -174,10 +180,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String barcode,  String name,  String? scientificName,  String category,  String? manufacturer,  double price,  double costPrice,  int countInBox,  double unitPrice,  int quantity,  DateTime? expiryDate,  String? storageLocation,  String? description)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String barcode,  String name,  String? scientificName,  String category,  String? manufacturer,  double price,  double costPrice,  int countInBox,  double unitPrice,  int quantity,  DateTime? expiryDate,  String? storageLocation,  String? description,  String? stripBarcode,  String? nameEn,  String? nameAr,  String? batchNumber,  double? costPriceUnit)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Product() when $default != null:
-return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_that.manufacturer,_that.price,_that.costPrice,_that.countInBox,_that.unitPrice,_that.quantity,_that.expiryDate,_that.storageLocation,_that.description);case _:
+return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_that.manufacturer,_that.price,_that.costPrice,_that.countInBox,_that.unitPrice,_that.quantity,_that.expiryDate,_that.storageLocation,_that.description,_that.stripBarcode,_that.nameEn,_that.nameAr,_that.batchNumber,_that.costPriceUnit);case _:
   return orElse();
 
 }
@@ -195,10 +201,10 @@ return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String barcode,  String name,  String? scientificName,  String category,  String? manufacturer,  double price,  double costPrice,  int countInBox,  double unitPrice,  int quantity,  DateTime? expiryDate,  String? storageLocation,  String? description)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String barcode,  String name,  String? scientificName,  String category,  String? manufacturer,  double price,  double costPrice,  int countInBox,  double unitPrice,  int quantity,  DateTime? expiryDate,  String? storageLocation,  String? description,  String? stripBarcode,  String? nameEn,  String? nameAr,  String? batchNumber,  double? costPriceUnit)  $default,) {final _that = this;
 switch (_that) {
 case _Product():
-return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_that.manufacturer,_that.price,_that.costPrice,_that.countInBox,_that.unitPrice,_that.quantity,_that.expiryDate,_that.storageLocation,_that.description);case _:
+return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_that.manufacturer,_that.price,_that.costPrice,_that.countInBox,_that.unitPrice,_that.quantity,_that.expiryDate,_that.storageLocation,_that.description,_that.stripBarcode,_that.nameEn,_that.nameAr,_that.batchNumber,_that.costPriceUnit);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -215,10 +221,10 @@ return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String barcode,  String name,  String? scientificName,  String category,  String? manufacturer,  double price,  double costPrice,  int countInBox,  double unitPrice,  int quantity,  DateTime? expiryDate,  String? storageLocation,  String? description)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String barcode,  String name,  String? scientificName,  String category,  String? manufacturer,  double price,  double costPrice,  int countInBox,  double unitPrice,  int quantity,  DateTime? expiryDate,  String? storageLocation,  String? description,  String? stripBarcode,  String? nameEn,  String? nameAr,  String? batchNumber,  double? costPriceUnit)?  $default,) {final _that = this;
 switch (_that) {
 case _Product() when $default != null:
-return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_that.manufacturer,_that.price,_that.costPrice,_that.countInBox,_that.unitPrice,_that.quantity,_that.expiryDate,_that.storageLocation,_that.description);case _:
+return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_that.manufacturer,_that.price,_that.costPrice,_that.countInBox,_that.unitPrice,_that.quantity,_that.expiryDate,_that.storageLocation,_that.description,_that.stripBarcode,_that.nameEn,_that.nameAr,_that.batchNumber,_that.costPriceUnit);case _:
   return null;
 
 }
@@ -230,7 +236,7 @@ return $default(_that.barcode,_that.name,_that.scientificName,_that.category,_th
 @JsonSerializable()
 
 class _Product implements Product {
-  const _Product({required this.barcode, required this.name, this.scientificName, required this.category, this.manufacturer, required this.price, required this.costPrice, required this.countInBox, required this.unitPrice, required this.quantity, this.expiryDate, this.storageLocation, this.description});
+  const _Product({required this.barcode, required this.name, this.scientificName, required this.category, this.manufacturer, required this.price, required this.costPrice, required this.countInBox, required this.unitPrice, required this.quantity, this.expiryDate, this.storageLocation, this.description, this.stripBarcode, this.nameEn, this.nameAr, this.batchNumber, this.costPriceUnit});
   factory _Product.fromJson(Map<String, dynamic> json) => _$ProductFromJson(json);
 
 @override final  String barcode;
@@ -249,6 +255,12 @@ class _Product implements Product {
 /// Optional
 @override final  String? storageLocation;
 @override final  String? description;
+/// Staging & Pharmacy Fields
+@override final  String? stripBarcode;
+@override final  String? nameEn;
+@override final  String? nameAr;
+@override final  String? batchNumber;
+@override final  double? costPriceUnit;
 
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
@@ -263,18 +275,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Product&&(identical(other.barcode, barcode) || other.barcode == barcode)&&(identical(other.name, name) || other.name == name)&&(identical(other.scientificName, scientificName) || other.scientificName == scientificName)&&(identical(other.category, category) || other.category == category)&&(identical(other.manufacturer, manufacturer) || other.manufacturer == manufacturer)&&(identical(other.price, price) || other.price == price)&&(identical(other.costPrice, costPrice) || other.costPrice == costPrice)&&(identical(other.countInBox, countInBox) || other.countInBox == countInBox)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.expiryDate, expiryDate) || other.expiryDate == expiryDate)&&(identical(other.storageLocation, storageLocation) || other.storageLocation == storageLocation)&&(identical(other.description, description) || other.description == description));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _Product&&(identical(other.barcode, barcode) || other.barcode == barcode)&&(identical(other.name, name) || other.name == name)&&(identical(other.scientificName, scientificName) || other.scientificName == scientificName)&&(identical(other.category, category) || other.category == category)&&(identical(other.manufacturer, manufacturer) || other.manufacturer == manufacturer)&&(identical(other.price, price) || other.price == price)&&(identical(other.costPrice, costPrice) || other.costPrice == costPrice)&&(identical(other.countInBox, countInBox) || other.countInBox == countInBox)&&(identical(other.unitPrice, unitPrice) || other.unitPrice == unitPrice)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.expiryDate, expiryDate) || other.expiryDate == expiryDate)&&(identical(other.storageLocation, storageLocation) || other.storageLocation == storageLocation)&&(identical(other.description, description) || other.description == description)&&(identical(other.stripBarcode, stripBarcode) || other.stripBarcode == stripBarcode)&&(identical(other.nameEn, nameEn) || other.nameEn == nameEn)&&(identical(other.nameAr, nameAr) || other.nameAr == nameAr)&&(identical(other.batchNumber, batchNumber) || other.batchNumber == batchNumber)&&(identical(other.costPriceUnit, costPriceUnit) || other.costPriceUnit == costPriceUnit));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,barcode,name,scientificName,category,manufacturer,price,costPrice,countInBox,unitPrice,quantity,expiryDate,storageLocation,description);
+    return Object.hash(runtimeType,barcode,name,scientificName,category,manufacturer,price,costPrice,countInBox,unitPrice,quantity,expiryDate,storageLocation,description,stripBarcode,nameEn,nameAr,batchNumber,costPriceUnit);
 }
 
 @override
 String toString() {
-    return 'Product(barcode: $barcode, name: $name, scientificName: $scientificName, category: $category, manufacturer: $manufacturer, price: $price, costPrice: $costPrice, countInBox: $countInBox, unitPrice: $unitPrice, quantity: $quantity, expiryDate: $expiryDate, storageLocation: $storageLocation, description: $description)';
+    return 'Product(barcode: $barcode, name: $name, scientificName: $scientificName, category: $category, manufacturer: $manufacturer, price: $price, costPrice: $costPrice, countInBox: $countInBox, unitPrice: $unitPrice, quantity: $quantity, expiryDate: $expiryDate, storageLocation: $storageLocation, description: $description, stripBarcode: $stripBarcode, nameEn: $nameEn, nameAr: $nameAr, batchNumber: $batchNumber, costPriceUnit: $costPriceUnit)';
 }
 
 
@@ -285,7 +297,7 @@ abstract mixin class _$ProductCopyWith<$Res> implements $ProductCopyWith<$Res> {
   factory _$ProductCopyWith(_Product value, $Res Function(_Product) _then) = __$ProductCopyWithImpl;
 @override @useResult
 $Res call({
- String barcode, String name, String? scientificName, String category, String? manufacturer, double price, double costPrice, int countInBox, double unitPrice, int quantity, DateTime? expiryDate, String? storageLocation, String? description
+ String barcode, String name, String? scientificName, String category, String? manufacturer, double price, double costPrice, int countInBox, double unitPrice, int quantity, DateTime? expiryDate, String? storageLocation, String? description, String? stripBarcode, String? nameEn, String? nameAr, String? batchNumber, double? costPriceUnit
 });
 
 
@@ -302,7 +314,7 @@ class __$ProductCopyWithImpl<$Res>
 
 /// Create a copy of Product
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? barcode = null,Object? name = null,Object? scientificName = freezed,Object? category = null,Object? manufacturer = freezed,Object? price = null,Object? costPrice = null,Object? countInBox = null,Object? unitPrice = null,Object? quantity = null,Object? expiryDate = freezed,Object? storageLocation = freezed,Object? description = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? barcode = null,Object? name = null,Object? scientificName = freezed,Object? category = null,Object? manufacturer = freezed,Object? price = null,Object? costPrice = null,Object? countInBox = null,Object? unitPrice = null,Object? quantity = null,Object? expiryDate = freezed,Object? storageLocation = freezed,Object? description = freezed,Object? stripBarcode = freezed,Object? nameEn = freezed,Object? nameAr = freezed,Object? batchNumber = freezed,Object? costPriceUnit = freezed,}) {
   return _then(_Product(
 barcode: null == barcode ? _self.barcode : barcode // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -317,7 +329,12 @@ as double,quantity: null == quantity ? _self.quantity : quantity // ignore: cast
 as int,expiryDate: freezed == expiryDate ? _self.expiryDate : expiryDate // ignore: cast_nullable_to_non_nullable
 as DateTime?,storageLocation: freezed == storageLocation ? _self.storageLocation : storageLocation // ignore: cast_nullable_to_non_nullable
 as String?,description: freezed == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,stripBarcode: freezed == stripBarcode ? _self.stripBarcode : stripBarcode // ignore: cast_nullable_to_non_nullable
+as String?,nameEn: freezed == nameEn ? _self.nameEn : nameEn // ignore: cast_nullable_to_non_nullable
+as String?,nameAr: freezed == nameAr ? _self.nameAr : nameAr // ignore: cast_nullable_to_non_nullable
+as String?,batchNumber: freezed == batchNumber ? _self.batchNumber : batchNumber // ignore: cast_nullable_to_non_nullable
+as String?,costPriceUnit: freezed == costPriceUnit ? _self.costPriceUnit : costPriceUnit // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 

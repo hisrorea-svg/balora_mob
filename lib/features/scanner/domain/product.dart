@@ -24,6 +24,13 @@ abstract class Product with _$Product {
     /// Optional
     String? storageLocation, // موقع التخزين
     String? description,
+
+    /// Staging & Pharmacy Fields
+    String? stripBarcode, // باركود الشريط/الوحدة
+    String? nameEn, // الاسم الإنجليزي (للملصقات)
+    String? nameAr, // الاسم التجاري العربي
+    String? batchNumber, // رقم الوجبة/التشغيلة
+    double? costPriceUnit, // تكلفة شراء الوحدة
   }) = _Product;
 
   factory Product.fromJson(Map<String, dynamic> json) =>

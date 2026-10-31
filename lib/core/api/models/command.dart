@@ -19,6 +19,8 @@ enum CommandType {
   countSet,
   @JsonValue('pos_scan')
   posScan,
+  @JsonValue('product_draft')
+  productDraft,
 }
 
 /// A command queued for synchronization with Balora Desktop.

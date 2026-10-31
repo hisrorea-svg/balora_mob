@@ -7,6 +7,7 @@ import '../features/auth/presentation/pairing_screen.dart';
 import '../features/counts/domain/count_models.dart';
 import '../features/counts/presentation/count_session_screen.dart';
 import '../features/counts/presentation/counts_screen.dart';
+import '../features/drafts/presentation/draft_entry_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/inventory/presentation/screens/inventory_review_screen.dart';
 import '../features/products/presentation/screens/product_form_screen.dart';
@@ -97,6 +98,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final product = state.extra as Product?;
           return ProductFormScreen(product: product);
+        },
+      ),
+      // Warehouse Receiving & Staging Drafts route
+      GoRoute(
+        path: '/drafts/entry',
+        name: 'draft_entry',
+        builder: (context, state) {
+          final barcode = state.uri.queryParameters['barcode'];
+          return DraftEntryScreen(initialBarcode: barcode);
         },
       ),
       // Stock count routes

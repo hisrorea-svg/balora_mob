@@ -71,6 +71,23 @@ class QueueService {
     return _enqueue(command, QueuePriority.medium);
   }
 
+  /// Enqueues a product draft for desktop review and staging (medium priority).
+  Future<String> enqueueProductDraft({
+    required String deviceId,
+    required Map<String, dynamic> draftData,
+    String? barcode,
+  }) {
+    final command = Command(
+      commandId: _uuid.v4(),
+      type: CommandType.productDraft,
+      barcode: barcode ?? (draftData['barcode'] as String?),
+      timestamp: DateTime.now(),
+      deviceId: deviceId,
+      payload: draftData,
+    );
+    return _enqueue(command, QueuePriority.medium);
+  }
+
   /// Enqueues a generic command based on type.
   ///
   /// [commandId] may be supplied when a direct send already failed so the

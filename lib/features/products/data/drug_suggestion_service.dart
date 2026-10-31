@@ -38,6 +38,44 @@ class DrugSuggestionService {
         .toList();
   }
 
+  /// Finds a drug suggestion with an exact barcode match.
+  DrugSuggestion? lookupByBarcode(String barcode) {
+    final cleanBarcode = barcode.trim();
+    if (cleanBarcode.isEmpty) return null;
+    for (final drug in _suggestions) {
+      if (drug.barcode != null && drug.barcode!.trim() == cleanBarcode) {
+        return drug;
+      }
+    }
+    return null;
+  }
+
+  /// Finds a drug suggestion with an exact name match.
+  DrugSuggestion? lookupByName(String name) {
+    final clean = name.trim().toLowerCase();
+    if (clean.isEmpty) return null;
+    for (final drug in _suggestions) {
+      if (drug.name.trim().toLowerCase() == clean) {
+        return drug;
+      }
+    }
+    return null;
+  }
+
+  /// Searches for drug suggestions where the barcode starts with or contains the query.
+  List<DrugSuggestion> searchByBarcode(String barcodeQuery) {
+    final cleanQuery = barcodeQuery.trim();
+    if (cleanQuery.isEmpty) return [];
+    return _suggestions
+        .where(
+          (drug) =>
+              drug.barcode != null &&
+              drug.barcode!.trim().contains(cleanQuery),
+        )
+        .take(10)
+        .toList();
+  }
+
   List<DrugSuggestion> searchByName(String query) {
     if (query.isEmpty) return [];
     final lowerQuery = query.toLowerCase();

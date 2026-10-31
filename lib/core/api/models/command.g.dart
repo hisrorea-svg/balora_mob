@@ -32,4 +32,5 @@ const _$CommandTypeEnumMap = {
   CommandType.countScan: 'count_scan',
   CommandType.countSet: 'count_set',
   CommandType.posScan: 'pos_scan',
+  CommandType.productDraft: 'product_draft',
 };

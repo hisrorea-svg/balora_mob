@@ -67,7 +67,7 @@ final class CountSessionProvider
   }
 }
 
-String _$countSessionHash() => r'8ee10a1c48a80910e36b84d6a909d557d078514c';
+String _$countSessionHash() => r'29490d48505c57c7ae6f19282b8922fc24330dfa';
 
 /// Owns one counting session: loads the server snapshot, sends scan/quantity
 /// commands directly for an immediate verdict, and falls back to the offline

@@ -186,9 +186,13 @@ class SyncEngine {
     // Parse the command JSON.
     final commandData = jsonDecode(item.commandJson) as Map<String, dynamic>;
 
-    // POST to desktop mobile listener commands endpoint.
+    // Route product draft commands to the dedicated staging endpoint, others to /m/api/commands.
+    final isDraft = commandData['type'] == 'product_draft' || item.commandType == 'productDraft';
+    final endpoint = isDraft ? '/m/api/products/draft' : '/m/api/commands';
+
+    // POST to desktop mobile listener endpoint.
     final result = await _apiClient.post<Map<String, dynamic>>(
-      '/m/api/commands',
+      endpoint,
       data: commandData,
     );
 
