@@ -179,7 +179,7 @@ final class ApiClientProvider
   }
 }
 
-String _$apiClientHash() => r'a8aa67fef9c5af08a847ab6880488484a2e92e06';
+String _$apiClientHash() => r'730bd1890c0e41b8c63ee1454898571ba7f6818f';
 
 /// Connectivity Provider — `.start()` is invoked eagerly so the underlying
 /// network status stream is live from the first frame (audit: previously

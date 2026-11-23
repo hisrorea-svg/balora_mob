@@ -2,6 +2,7 @@ import 'package:balora_mob/core/api/dio_client.dart';
 import 'package:balora_mob/core/api/models/command.dart';
 import 'package:balora_mob/core/providers.dart';
 import 'package:balora_mob/core/result/result.dart';
+import 'package:balora_mob/core/security/secure_session_store.dart';
 import 'package:balora_mob/core/sync/database/app_database.dart';
 import 'package:balora_mob/core/sync/queue_service.dart';
 import 'package:balora_mob/features/auth/domain/auth_repository.dart';
@@ -25,6 +26,40 @@ class MockAuthRepository extends Mock implements AuthRepository {}
 class MockApiClient extends Mock implements ApiClient {}
 
 class MockWebSocketService extends Mock implements WebSocketService {}
+
+/// In-memory [SessionTokenStore] so pairing tests do not need the
+/// platform secure-storage channel.
+class FakeTokenStore implements SessionTokenStore {
+  String? token;
+
+  @override
+  Future<String?> readToken() async => token;
+
+  @override
+  Future<void> writeToken(String value) async {
+    token = value;
+  }
+
+  @override
+  Future<void> deleteToken() async {
+    token = null;
+  }
+}
+
+/// [SessionTokenStore] whose read always fails, simulating a transient
+/// secure-storage error (for example the keystore being briefly
+/// unavailable) rather than a missing token.
+class ThrowingTokenStore implements SessionTokenStore {
+  @override
+  Future<String?> readToken() async =>
+      throw Exception('keystore unavailable');
+
+  @override
+  Future<void> writeToken(String value) async {}
+
+  @override
+  Future<void> deleteToken() async {}
+}
 
 /// Test-only [ScannerModeNotifier] that returns a fixed mode from
 /// [build], because the generated [ScannerModeNotifier.build] always
@@ -204,7 +239,13 @@ void main() {
         addTearDown(db.close);
         final apiClient = MockApiClient();
         final ws = MockWebSocketService();
-        final repo = AuthRepository(apiClient, db, ws);
+        final tokenStore = FakeTokenStore();
+        final repo = AuthRepository(
+          apiClient,
+          db,
+          ws,
+          tokenStore: tokenStore,
+        );
 
         when(
           () => apiClient.post<Map<String, dynamic>>(
@@ -246,9 +287,53 @@ void main() {
 
         final saved = await repo.getActiveSession();
         expect(saved, isNotNull);
-        expect(saved!.sessionToken, 'mob-token-xyz');
+        // The token lives in secure storage now, never in the database:
+        // the legacy column stays empty and the store holds the token.
+        expect(saved!.sessionToken, isEmpty);
+        expect(tokenStore.token, 'mob-token-xyz');
         expect(saved.serverUrl, 'https://192.168.1.15:4784');
         expect(saved.deviceName, 'هاتف الرفوف');
+        verify(() => apiClient.setToken('mob-token-xyz')).called(2);
+      },
+    );
+
+    test(
+      'getActiveSession keeps the session row when secure storage read fails transiently',
+      () async {
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(db.close);
+        final apiClient = MockApiClient();
+        final ws = MockWebSocketService();
+        final repo = AuthRepository(
+          apiClient,
+          db,
+          ws,
+          tokenStore: ThrowingTokenStore(),
+        );
+
+        await db
+            .into(db.sessions)
+            .insert(
+              SessionsCompanion.insert(
+                sessionToken: '',
+                serverUrl: 'https://192.168.1.15:4784',
+                deviceId: 'dev-1',
+                deviceName: 'هاتف الرفوف',
+                expiresAt: DateTime.now().add(const Duration(hours: 8)),
+                createdAt: DateTime.now(),
+              ),
+            );
+
+        final session = await repo.getActiveSession();
+        expect(session, isNull);
+
+        // The row must survive so the next launch can retry instead
+        // of forcing the user to re-pair for a token that is still
+        // stored.
+        final kept = await db.select(db.sessions).getSingleOrNull();
+        expect(kept, isNotNull);
+        expect(kept!.deviceId, 'dev-1');
+        verifyNever(() => apiClient.clearAuth());
       },
     );
 
