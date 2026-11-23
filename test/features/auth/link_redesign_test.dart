@@ -1,15 +1,23 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:balora_mob/app/router.dart';
+import 'package:balora_mob/app/theme.dart';
 import 'package:balora_mob/core/api/dio_client.dart';
 import 'package:balora_mob/core/providers.dart';
 import 'package:balora_mob/core/result/result.dart';
 import 'package:balora_mob/core/security/secure_session_store.dart';
 import 'package:balora_mob/core/sync/database/app_database.dart';
 import 'package:balora_mob/features/auth/domain/auth_repository.dart';
+import 'package:balora_mob/features/auth/domain/desktop_server_source.dart';
 import 'package:balora_mob/features/auth/domain/link_preferences.dart';
+import 'package:balora_mob/features/auth/domain/mdns_desktop_server_source.dart';
 import 'package:balora_mob/features/auth/presentation/auth_controller.dart';
 import 'package:balora_mob/features/auth/presentation/link_screen.dart';
+import 'package:balora_mob/features/auth/presentation/widgets/code_link_view.dart';
 import 'package:balora_mob/features/home/presentation/home_screen.dart';
 import 'package:balora_mob/features/inventory/presentation/inventory_providers.dart';
+import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +30,41 @@ class MockApiClient extends Mock implements ApiClient {}
 class MockWebSocketService extends Mock implements WebSocketService {}
 
 class MockAuthRepository extends Mock implements AuthRepository {}
+
+class _FakeServerSource implements DesktopServerSource {
+  _FakeServerSource(this._servers, {this.shouldThrow = false});
+
+  final List<DesktopServer> _servers;
+  final bool shouldThrow;
+
+  @override
+  Future<List<DesktopServer>> discover() async {
+    if (shouldThrow) {
+      throw StateError('discovery failed');
+    }
+    return _servers;
+  }
+}
+
+class _CountingAdapter implements HttpClientAdapter {
+  _CountingAdapter(this._responder);
+
+  final ResponseBody Function(RequestOptions options, int callNumber) _responder;
+  int callCount = 0;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    callCount++;
+    return _responder(options, callCount);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 /// In-memory [SessionTokenStore] so pairing tests do not need the
 /// platform secure-storage channel.
@@ -442,7 +485,10 @@ void main() {
           child: Consumer(
             builder: (context, ref, child) {
               final router = ref.watch(routerProvider);
-              return MaterialApp.router(routerConfig: router);
+              return MaterialApp.router(
+                theme: BaloraTheme.light(),
+                routerConfig: router,
+              );
             },
           ),
         ),
@@ -470,9 +516,287 @@ void main() {
       await pumpRouter(tester, initialLocation: '/pairing');
 
       expect(find.byType(LinkScreen), findsOneWidget);
-      expect(find.text('Scan QR Code to Sign In'), findsOneWidget);
+      expect(find.text('ربط الهاتف بالكمبيوتر'), findsOneWidget);
       expect(find.text('مسح QR'), findsOneWidget);
       expect(find.text('كود 6 أرقام'), findsOneWidget);
+      expect(
+        find.text('الربط بكود 6 أرقام بدلاً من الكاميرا'),
+        findsOneWidget,
+      );
     });
+  });
+
+  group('mDNS desktop discovery & CompositeDesktopServerSource', () {
+    test(
+      'desktopServerFromMdnsRecord parses TXT fields and prefers LAN IPv4',
+      () {
+        final record = MdnsServiceRecord(
+          name: 'Fallback Name',
+          host: 'pharmacy-pc.local.',
+          port: 9999,
+          addresses: [
+            InternetAddress('127.0.0.1'),
+            InternetAddress('169.254.10.20'),
+            InternetAddress('192.168.1.50'),
+          ],
+          txt: const {
+            'ver': '1',
+            'scheme': 'https',
+            'path': '/m/',
+            'port': '4784',
+            'name': 'Balora (PHARMACY-PC)',
+          },
+        );
+
+        final server = desktopServerFromMdnsRecord(record);
+        expect(server, isNotNull);
+        expect(server!.url, 'https://192.168.1.50:4784');
+        expect(server.label, 'Balora (PHARMACY-PC)');
+        expect(server.isDiscovered, isTrue);
+        expect(server.isLastUsed, isFalse);
+      },
+    );
+
+    test(
+      'desktopServerFromMdnsRecord cleans host fallback and rejects invalid records',
+      () {
+        final hostFallback = desktopServerFromMdnsRecord(
+          MdnsServiceRecord(
+            name: 'Balora Desktop',
+            host: 'balora-pc.local.',
+            port: 4784,
+            addresses: [InternetAddress('127.0.0.1')],
+            txt: const {'scheme': 'ftp'},
+          ),
+        );
+        expect(hostFallback, isNotNull);
+        expect(hostFallback!.url, 'https://balora-pc.local:4784');
+        expect(hostFallback.label, 'Balora Desktop');
+
+        expect(
+          desktopServerFromMdnsRecord(
+            const MdnsServiceRecord(host: 'balora.local', port: 0),
+          ),
+          isNull,
+        );
+        expect(
+          desktopServerFromMdnsRecord(const MdnsServiceRecord(port: 4784)),
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'CompositeDesktopServerSource deduplicates, merges labels/flags, orders cleanly, and isolates errors',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'balora_last_server_url',
+          'https://192.168.1.50:4784/',
+        );
+
+        final composite = CompositeDesktopServerSource([
+          ManualDesktopServerSource(LinkPreferences(prefs)),
+          _FakeServerSource(const [], shouldThrow: true),
+          _FakeServerSource(const [
+            DesktopServer(
+              url: 'https://192.168.1.99:4784',
+              label: 'Balora (Counter 2)',
+              isDiscovered: true,
+            ),
+            DesktopServer(
+              url: 'HTTPS://192.168.1.50:4784',
+              label: 'Balora (Main)',
+              isDiscovered: true,
+            ),
+          ]),
+        ]);
+
+        final servers = await composite.discover();
+        expect(servers, hasLength(2));
+        expect(servers[0].url, 'https://192.168.1.50:4784/');
+        expect(servers[0].isLastUsed, isTrue);
+        expect(servers[0].isDiscovered, isTrue);
+        expect(servers[0].label, 'Balora (Main)');
+
+        expect(servers[1].url, 'https://192.168.1.99:4784');
+        expect(servers[1].isDiscovered, isTrue);
+        expect(servers[1].isLastUsed, isFalse);
+      },
+    );
+
+    test('MdnsDesktopServerSource maps records and fails softly', () async {
+      final source = MdnsDesktopServerSource(
+        discoverRecords: (_, _) async => [
+          MdnsServiceRecord(
+            name: 'Balora (Desk)',
+            addresses: [InternetAddress('192.168.1.15')],
+            port: 4784,
+            txt: const {'scheme': 'https', 'port': '4784', 'name': 'Main PC'},
+          ),
+          MdnsServiceRecord(
+            name: 'Duplicate',
+            addresses: [InternetAddress('192.168.1.15')],
+            port: 4784,
+          ),
+        ],
+      );
+      final discovered = await source.discover();
+      expect(discovered, hasLength(1));
+      expect(discovered.single.url, 'https://192.168.1.15:4784');
+      expect(discovered.single.label, 'Main PC');
+
+      final throwingSource = MdnsDesktopServerSource(
+        discoverRecords: (_, _) async => throw StateError('multicast blocked'),
+      );
+      expect(await throwingSource.discover(), isEmpty);
+
+      // Default platform implementation also fails softly in headless unit tests.
+      expect(await MdnsDesktopServerSource().discover(), isEmpty);
+    });
+  });
+
+  group('RetryInterceptor & ProblemDetails error mapping', () {
+    test(
+      'does not retry POST /m/api/pair on 429 and extracts Arabic problem+json detail',
+      () async {
+        final adapter = _CountingAdapter((_, _) {
+          return ResponseBody.fromString(
+            '{"title":"محاولات كثيرة","detail":"تم تجاوز عدد محاولات الربط المسموح به."}',
+            429,
+            headers: {
+              Headers.contentTypeHeader: ['application/problem+json'],
+            },
+          );
+        });
+        final dio = Dio(BaseOptions(baseUrl: 'https://192.168.1.15:4784'))
+          ..httpClientAdapter = adapter;
+        dio.interceptors.add(RetryInterceptor(dio));
+
+        final client = ApiClient(dio);
+        final res = await client.post<Map<String, dynamic>>(
+          '/m/api/pair',
+          data: {'code': '123456', 'label': 'هاتف'},
+        );
+
+        expect(adapter.callCount, 1);
+        expect(res.isFailure, isTrue);
+        final failure = res as Failure<Map<String, dynamic>>;
+        expect(failure.exception, isA<ServerException>());
+        expect(
+          failure.exception.userMessage,
+          'تم تجاوز عدد محاولات الربط المسموح به.',
+        );
+      },
+    );
+
+    test(
+      'retries transient 503 responses on non-pair endpoints up to max retries',
+      () async {
+        final adapter = _CountingAdapter((_, _) {
+          return ResponseBody.fromString(
+            '{"detail":"busy"}',
+            503,
+            headers: {
+              Headers.contentTypeHeader: ['application/json'],
+            },
+          );
+        });
+        final dio = Dio(BaseOptions(baseUrl: 'https://192.168.1.15:4784'))
+          ..httpClientAdapter = adapter;
+        dio.interceptors.add(RetryInterceptor(dio));
+
+        final client = ApiClient(dio);
+        final res = await client.get<Map<String, dynamic>>('/m/api/session');
+
+        expect(res.isFailure, isTrue);
+        expect(adapter.callCount, 3); // 1 initial attempt + 2 retries
+      },
+    );
+
+    test('ServerException 429 fallback message is clear in Arabic', () {
+      const ex = ServerException('Too Many Requests', statusCode: 429);
+      expect(ex.userMessage, contains('محاولات كثيرة'));
+    });
+  });
+
+  group('LinkScreen & CodeLinkView UX polish', () {
+    late AppDatabase db;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+    });
+
+    Future<void> pumpLinkScreen(
+      WidgetTester tester, {
+      List<DesktopServer> discovered = const [],
+    }) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            mdnsDesktopServerSourceProvider.overrideWithValue(
+              _FakeServerSource(discovered),
+            ),
+          ],
+          child: MaterialApp(
+            theme: BaloraTheme.light(),
+            home: const LinkScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    testWidgets(
+      'switching from QR bottom action opens CodeLinkView, shows mDNS chip, auto-fills single server, and normalizes Arabic digits',
+      (tester) async {
+        await pumpLinkScreen(
+          tester,
+          discovered: const [
+            DesktopServer(
+              url: 'https://192.168.1.50:4784',
+              label: 'Balora (PHARMACY-PC)',
+              isDiscovered: true,
+            ),
+          ],
+        );
+
+        expect(find.byType(CodeLinkView), findsNothing);
+        await tester.tap(find.text('الربط بكود 6 أرقام بدلاً من الكاميرا'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(find.byType(CodeLinkView), findsOneWidget);
+        expect(
+          find.text('Balora (PHARMACY-PC) • 192.168.1.50:4784'),
+          findsOneWidget,
+        );
+
+        // Single discovered desktop auto-populates the server field.
+        final serverField = tester.widget<TextField>(
+          find.byType(TextField).first,
+        );
+        expect(serverField.controller?.text, 'https://192.168.1.50:4784');
+
+        // Enter Arabic-Indic digits into the 6-digit code TextField.
+        await tester.enterText(find.byType(TextField).at(1), '٤٨٢٩١٣');
+        await tester.pump();
+
+        final codeField = tester.widget<TextField>(
+          find.byType(TextField).at(1),
+        );
+        expect(codeField.controller?.text, '482913');
+
+        final submitButton = tester.widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, 'ربط'),
+        );
+        expect(submitButton.onPressed, isNotNull);
+      },
+    );
   });
 }

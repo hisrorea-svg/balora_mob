@@ -139,6 +139,13 @@ class SettingsScreen extends ConsumerWidget {
                               _formatDate(session.createdAt),
                               isLtr: true,
                             ),
+                            const Divider(height: 18),
+                            _buildInfoRow(
+                              context,
+                              'صلاحية الجلسة حتى',
+                              _formatDate(session.expiresAt),
+                              isLtr: true,
+                            ),
                           ],
                         ),
                       ),

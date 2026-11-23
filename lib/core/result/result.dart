@@ -89,6 +89,8 @@ sealed class AppException implements Exception {
         (serverMessage != null &&
                 RegExp(r'[\u0600-\u06FF]').hasMatch(serverMessage))
             ? serverMessage
+            : statusCode == 429
+            ? 'محاولات كثيرة متتالية. يرجى الانتظار قليلاً ثم المحاولة مرة أخرى.'
             : 'تعذر إتمام العملية من الخادم (رمز الخطأ: $statusCode).',
       NotFoundException() => 'الخدمة المطلوبة غير متوفرة على خادم الكمبيوتر.',
       CacheException() => 'حدث خطأ في قاعدة البيانات المحلية للهاتف.',

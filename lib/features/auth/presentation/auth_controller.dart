@@ -5,6 +5,7 @@ import '../../../../core/result/result.dart';
 import '../domain/auth_repository.dart';
 import '../domain/desktop_server_source.dart';
 import '../domain/link_preferences.dart';
+import '../domain/mdns_desktop_server_source.dart';
 
 part 'auth_controller.g.dart';
 
@@ -100,13 +101,15 @@ class AuthController extends _$AuthController {
     }
   }
 
-  /// Desktop servers available for code linking: discovered servers
-  /// plus the remembered last-used one. Today discovery is manual-only
-  /// (see [ManualDesktopServerSource]); mDNS plugs in later without
-  /// changing this API.
+  /// Desktop servers available for code linking: discovered LAN servers
+  /// combined with the remembered last-used address.
   Future<List<DesktopServer>> loadServers() async {
     final prefs = await ref.read(linkPreferencesProvider.future);
-    return ManualDesktopServerSource(prefs).discover();
+    final composite = CompositeDesktopServerSource([
+      ManualDesktopServerSource(prefs),
+      ref.read(mdnsDesktopServerSourceProvider),
+    ]);
+    return composite.discover();
   }
 
   /// The last server a pairing succeeded with, if any — used to

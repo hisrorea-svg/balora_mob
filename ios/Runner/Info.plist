@@ -33,6 +33,7 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>
+		<string>_balora._tcp</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

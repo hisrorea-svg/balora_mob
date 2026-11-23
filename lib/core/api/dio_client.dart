@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../app/bootstrap.dart';
@@ -99,10 +101,20 @@ class ApiClient {
   /// Maps HTTP status codes to specific exception types.
   AppException _mapStatusCode(DioException e, StackTrace st) {
     final statusCode = e.response?.statusCode ?? 0;
-    final data = e.response?.data;
+    var data = e.response?.data;
+    if (data is String) {
+      final trimmed = data.trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          data = jsonDecode(trimmed);
+        } catch (_) {}
+      }
+    }
     String? detail;
     if (data is Map<String, dynamic>) {
       detail = (data['detail'] as String?) ?? (data['title'] as String?);
+    } else if (data is Map) {
+      detail = data['detail']?.toString() ?? data['title']?.toString();
     }
     final message = detail ?? e.response?.statusMessage ?? 'Unknown error';
 
@@ -115,7 +127,7 @@ class ApiClient {
       _ => ServerException(
         message,
         statusCode: statusCode,
-        serverMessage: data?.toString(),
+        serverMessage: detail ?? data?.toString(),
         stackTrace: st,
       ),
     };
@@ -157,14 +169,33 @@ class RetryInterceptor extends Interceptor {
 
   RetryInterceptor(this._dio);
 
+  /// Returns `false` for rate-limited (`429`) pairing attempts so the user sees
+  /// the lockout/rate-limit feedback immediately without burning extra attempts.
+  static bool shouldRetry(RequestOptions options, int? statusCode) {
+    if (statusCode == null || !_retryableStatusCodes.contains(statusCode)) {
+      return false;
+    }
+    final parsed = Uri.tryParse(options.path);
+    final rawPath = (parsed != null && parsed.path.isNotEmpty)
+        ? parsed.path
+        : options.uri.path;
+    final cleanPath = rawPath.endsWith('/') && rawPath.length > 1
+        ? rawPath.substring(0, rawPath.length - 1)
+        : rawPath;
+    if (statusCode == 429 &&
+        (cleanPath == '/m/api/pair' || cleanPath.endsWith('/m/api/pair'))) {
+      return false;
+    }
+    return true;
+  }
+
   @override
   Future<void> onError(
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
     final statusCode = err.response?.statusCode;
-    final isRetryable =
-        statusCode != null && _retryableStatusCodes.contains(statusCode);
+    final isRetryable = shouldRetry(err.requestOptions, statusCode);
 
     if (!isRetryable) {
       handler.next(err);

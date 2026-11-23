@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/app_info.dart';
 import '../../../core/providers.dart';
 import '../../auth/domain/auth_repository.dart';
 
@@ -130,7 +131,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               bottom: 16,
               child: Center(
                 child: Text(
-                  'Balora Mobile Companion • الإصدار 1.0.7',
+                  'Balora Mobile Companion • الإصدار ${AppInfo.version}',
                   style: TextStyle(
                     fontSize: 11,
                     color: BaloraColors.textMuted.withValues(alpha: 0.7),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/app_info.dart';
 import '../../../core/providers.dart';
 import '../../../shared/widgets/exit_confirmation_dialog.dart';
 import '../../inventory/presentation/inventory_providers.dart';
@@ -12,7 +13,6 @@ import '../../scanner/presentation/scanner_mode_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
-
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -302,7 +302,7 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                'الإصدار 1.1.0',
+                                'الإصدار ${AppInfo.version}',
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   color: BaloraColors.textMuted.withValues(
@@ -856,6 +856,9 @@ class _NotLinkedBanner extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: BaloraColors.primary,
                 foregroundColor: Colors.white,
+                // Override theme's `Size(double.infinity, 48)` because this
+                // button sits inside a Row with unconstrained horizontal width.
+                minimumSize: const Size(0, 40),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 9,

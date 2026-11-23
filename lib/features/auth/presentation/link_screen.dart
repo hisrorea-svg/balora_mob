@@ -73,9 +73,9 @@ class _LinkScreenState extends ConsumerState<LinkScreen> {
     });
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: _method == _LinkMethod.code,
       appBar: AppBar(
-        title: const Text('Scan QR Code to Sign In'),
+        title: const Text('ربط الهاتف بالكمبيوتر'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(height: 1, color: BaloraColors.borderSubtle),
@@ -97,7 +97,12 @@ class _LinkScreenState extends ConsumerState<LinkScreen> {
           ),
           Expanded(
             child: _method == _LinkMethod.qr
-                ? QrLinkView(key: _qrViewKey)
+                ? QrLinkView(
+                    key: _qrViewKey,
+                    onSwitchToCodeTab: () {
+                      setState(() => _method = _LinkMethod.code);
+                    },
+                  )
                 : const CodeLinkView(),
           ),
         ],

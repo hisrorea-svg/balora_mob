@@ -28,6 +28,7 @@ class _CodeLinkViewState extends ConsumerState<CodeLinkView> {
   List<DesktopServer> _servers = const [];
   bool _loadingServers = true;
   bool _canSubmit = false;
+  String _activeServerKey = '';
 
   @override
   void initState() {
@@ -46,31 +47,43 @@ class _CodeLinkViewState extends ConsumerState<CodeLinkView> {
   }
 
   void _onFieldChanged() {
+    final serverText = _serverController.text.trim();
+    final serverKey = normalizeDesktopServerUrlKey(serverText);
     final canSubmit =
-        _serverController.text.trim().isNotEmpty &&
-        _codeController.text.trim().length == 6;
-    if (canSubmit != _canSubmit) {
-      setState(() => _canSubmit = canSubmit);
+        serverText.isNotEmpty && _codeController.text.trim().length == 6;
+    if (canSubmit != _canSubmit || serverKey != _activeServerKey) {
+      setState(() {
+        _canSubmit = canSubmit;
+        _activeServerKey = serverKey;
+      });
     }
   }
 
   Future<void> _loadServers() async {
+    if (!_loadingServers && mounted) {
+      setState(() => _loadingServers = true);
+    }
     final servers = await ref
         .read(authControllerProvider.notifier)
         .loadServers();
     if (!mounted) return;
-    DesktopServer? lastUsed;
+
+    DesktopServer? selected;
     for (final server in servers) {
       if (server.isLastUsed) {
-        lastUsed = server;
+        selected = server;
         break;
       }
     }
+    if (selected == null && servers.length == 1) {
+      selected = servers.first;
+    }
+
     setState(() {
       _servers = servers;
       _loadingServers = false;
-      if (lastUsed != null && _serverController.text.isEmpty) {
-        _serverController.text = lastUsed.url;
+      if (selected != null && _serverController.text.trim().isEmpty) {
+        _serverController.text = selected.url;
       }
     });
   }
@@ -87,6 +100,23 @@ class _CodeLinkViewState extends ConsumerState<CodeLinkView> {
           code: code,
           deviceLabel: _labelController.text.trim(),
         );
+  }
+
+  String _shortServerHost(String url) {
+    final parsed = Uri.tryParse(url);
+    if (parsed != null && parsed.authority.isNotEmpty) {
+      return parsed.authority;
+    }
+    return url;
+  }
+
+  String _chipLabel(DesktopServer server) {
+    final shortHost = _shortServerHost(server.url);
+    if (server.isDiscovered) {
+      final name = server.label?.trim();
+      return (name != null && name.isNotEmpty) ? '$name • $shortHost' : shortHost;
+    }
+    return 'آخر خادم: $shortHost';
   }
 
   @override
@@ -137,13 +167,37 @@ class _CodeLinkViewState extends ConsumerState<CodeLinkView> {
               const SizedBox(height: 24),
 
               // --- Server address ---
-              const Text(
-                'عنوان الكمبيوتر',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: BaloraColors.textSecondary,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'عنوان الكمبيوتر',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: BaloraColors.textSecondary,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _loadingServers ? null : _loadServers,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text(
+                      'إعادة البحث',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               TextField(
@@ -158,33 +212,83 @@ class _CodeLinkViewState extends ConsumerState<CodeLinkView> {
               ),
               if (_loadingServers)
                 const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: LinearProgressIndicator(),
+                  padding: EdgeInsets.only(top: 10),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'جارٍ البحث عن كمبيوتر Balora على الشبكة…',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: BaloraColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 )
               else if (_servers.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _servers
-                      .map(
-                        (server) => ActionChip(
-                          avatar: const Icon(
-                            Icons.history_rounded,
-                            size: 16,
-                          ),
-                          label: Text(
-                            server.isLastUsed
-                                ? 'آخر خادم: ${server.url}'
-                                : server.url,
-                            textDirection: TextDirection.ltr,
-                          ),
-                          onPressed: () {
-                            _serverController.text = server.url;
-                          },
+                  children: _servers.map((server) {
+                    final isSelected =
+                        _activeServerKey.isNotEmpty &&
+                        normalizeDesktopServerUrlKey(server.url) ==
+                            _activeServerKey;
+                    return ActionChip(
+                      avatar: Icon(
+                        server.isDiscovered
+                            ? Icons.wifi_tethering_rounded
+                            : Icons.history_rounded,
+                        size: 16,
+                        color: server.isDiscovered
+                            ? BaloraColors.success
+                            : BaloraColors.textSecondary,
+                      ),
+                      label: Text(
+                        _chipLabel(server),
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? BaloraColors.primary
+                              : BaloraColors.textPrimary,
                         ),
-                      )
-                      .toList(),
+                      ),
+                      backgroundColor: isSelected
+                          ? BaloraColors.primarySoft
+                          : BaloraColors.surfaceSubtle,
+                      side: BorderSide(
+                        color: isSelected
+                            ? BaloraColors.primary
+                            : BaloraColors.borderSubtle,
+                      ),
+                      onPressed: () {
+                        _serverController.text = server.url;
+                      },
+                    );
+                  }).toList(),
+                ),
+              ] else ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'لم يُعثر على كمبيوتر تلقائياً. اكتب عنوان الشبكة الظاهر في أعلى شاشة «ماسح الموبايل» على الكمبيوتر.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: BaloraColors.textMuted,
+                    height: 1.4,
+                  ),
                 ),
               ],
               const SizedBox(height: 20),
@@ -204,7 +308,14 @@ class _CodeLinkViewState extends ConsumerState<CodeLinkView> {
                 textDirection: TextDirection.ltr,
                 textAlign: TextAlign.center,
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  if (_canSubmit && !isLoading) {
+                    _submit();
+                  }
+                },
                 inputFormatters: [
+                  _ArabicDigitsToAsciiFormatter(),
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(6),
                 ],
@@ -277,5 +388,35 @@ class _CodeLinkViewState extends ConsumerState<CodeLinkView> {
         ),
       ),
     );
+  }
+}
+
+/// Converts Arabic-Indic (`٠-٩`) and Extended Arabic-Indic / Persian (`۰-۹`)
+/// digits to ASCII `0-9` so numeric keyboards on Arabic locales work cleanly.
+class _ArabicDigitsToAsciiFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+    StringBuffer? buffer;
+    for (var i = 0; i < text.length; i++) {
+      final code = text.codeUnitAt(i);
+      int? asciiDigit;
+      if (code >= 0x0660 && code <= 0x0669) {
+        asciiDigit = 0x30 + (code - 0x0660);
+      } else if (code >= 0x06F0 && code <= 0x06F9) {
+        asciiDigit = 0x30 + (code - 0x06F0);
+      }
+      if (asciiDigit != null) {
+        buffer ??= StringBuffer(text.substring(0, i));
+        buffer.writeCharCode(asciiDigit);
+      } else if (buffer != null) {
+        buffer.writeCharCode(code);
+      }
+    }
+    if (buffer == null) return newValue;
+    return newValue.copyWith(text: buffer.toString());
   }
 }

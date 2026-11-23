@@ -12,7 +12,9 @@ import '../auth_controller.dart';
 /// through [QrLinkViewState.stopCamera] before navigating away on a
 /// successful pairing.
 class QrLinkView extends ConsumerStatefulWidget {
-  const QrLinkView({super.key});
+  const QrLinkView({super.key, this.onSwitchToCodeTab});
+
+  final VoidCallback? onSwitchToCodeTab;
 
   @override
   ConsumerState<QrLinkView> createState() => QrLinkViewState();
@@ -101,116 +103,6 @@ class QrLinkViewState extends ConsumerState<QrLinkView> {
           setState(() => _isProcessing = false);
         }
       }
-    }
-  }
-
-  Future<void> _showManualPairingDialog() async {
-    final linkOrCodeController = TextEditingController();
-    final hostController = TextEditingController();
-
-    final submittedPayload = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('إدخال بيانات الربط يدوياً'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'الصق «رابط الربط» المنسوخ من الكمبيوتر مباشرةً، أو أدخل عنوان الخادم وكود الربط:',
-                  style: TextStyle(fontSize: 13),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: linkOrCodeController,
-                  textDirection: TextDirection.ltr,
-                  decoration: InputDecoration(
-                    labelText: 'رابط الربط أو كود الربط',
-                    hintText: 'https://192.168.1.15:4784/m/?code=...',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.paste),
-                      tooltip: 'لصق من الحافظة',
-                      onPressed: () async {
-                        final clip = await Clipboard.getData('text/plain');
-                        if (clip?.text != null) {
-                          linkOrCodeController.text = clip!.text!.trim();
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: hostController,
-                  textDirection: TextDirection.ltr,
-                  decoration: const InputDecoration(
-                    labelText: 'عنوان الكمبيوتر (عند إدخال الكود فقط)',
-                    hintText: '192.168.1.15:4784',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final raw = linkOrCodeController.text.trim();
-                final host = hostController.text.trim();
-                if (raw.isEmpty) return;
-
-                if (raw.contains('code=') ||
-                    raw.startsWith('http://') ||
-                    raw.startsWith('https://') ||
-                    raw.startsWith('{')) {
-                  Navigator.of(ctx).pop(raw);
-                  return;
-                }
-
-                if (host.isNotEmpty) {
-                  final normalizedHost =
-                      (host.startsWith('http://') ||
-                          host.startsWith('https://'))
-                      ? host
-                      : 'https://$host';
-                  final cleanHost = normalizedHost.endsWith('/')
-                      ? normalizedHost.substring(0, normalizedHost.length - 1)
-                      : normalizedHost;
-                  Navigator.of(
-                    ctx,
-                  ).pop('$cleanHost/m/?code=${Uri.encodeQueryComponent(raw)}');
-                }
-              },
-              child: const Text('اقتران'),
-            ),
-          ],
-        );
-      },
-    );
-
-    linkOrCodeController.dispose();
-    hostController.dispose();
-
-    if (submittedPayload == null || submittedPayload.isEmpty || !mounted) {
-      return;
-    }
-
-    setState(() => _isProcessing = true);
-    await ref
-        .read(authControllerProvider.notifier)
-        .pairWithQr(
-          submittedPayload,
-          deviceLabel: _labelController.text.trim(),
-        );
-    if (mounted && ref.read(authControllerProvider).hasError) {
-      setState(() => _isProcessing = false);
     }
   }
 
@@ -333,7 +225,7 @@ class QrLinkViewState extends ConsumerState<QrLinkView> {
               ),
             ),
 
-            // التعليمات وزر الإدخال اليدوي في الأسفل بعيداً عن مربع المسح
+            // التعليمات وخيار التبديل إلى كود 6 أرقام في الأسفل بعيداً عن مربع المسح
             Positioned(
               bottom: 24 + MediaQuery.of(context).padding.bottom,
               left: 24,
@@ -350,32 +242,36 @@ class QrLinkViewState extends ConsumerState<QrLinkView> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  TextButton.icon(
-                    onPressed: _isProcessing ? null : _showManualPairingDialog,
-                    icon: const Icon(
-                      Icons.keyboard_alt_outlined,
-                      color: Colors.white,
-                    ),
-                    label: const Text(
-                      'إدخال الرابط أو الكود يدوياً',
-                      style: TextStyle(
+                  if (widget.onSwitchToCodeTab != null) ...[
+                    const SizedBox(height: 10),
+                    TextButton.icon(
+                      onPressed: _isProcessing
+                          ? null
+                          : widget.onSwitchToCodeTab,
+                      icon: const Icon(
+                        Icons.dialpad_rounded,
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                      ),
+                      label: const Text(
+                        'الربط بكود 6 أرقام بدلاً من الكاميرا',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.black54,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: const BorderSide(color: Colors.white38),
+                        ),
                       ),
                     ),
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.black54,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: const BorderSide(color: Colors.white38),
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
