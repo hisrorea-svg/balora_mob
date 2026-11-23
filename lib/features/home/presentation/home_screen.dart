@@ -18,6 +18,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pendingAsync = ref.watch(pendingCountCommandsProvider);
     final pendingCount = pendingAsync.value?.length ?? 0;
+    final linked = ref.watch(authStateProvider);
 
     return PopScope(
       canPop: false,
@@ -117,6 +118,14 @@ class HomeScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // --- Not linked banner (guest mode) ---
+                        if (!linked) ...[
+                          _NotLinkedBanner(
+                            onLinkTap: () => context.push('/pairing'),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
                         // --- Hero Card: POS Live Barcode Scanner ---
                         _PosHeroScannerCard(
                           onTap: () {
@@ -780,6 +789,89 @@ class _SettingsButton extends StatelessWidget {
       onPressed: () => context.push('/settings'),
       tooltip: 'الإعدادات',
       color: BaloraColors.textSecondary,
+    );
+  }
+}
+
+/// Guest-mode banner: shown on Home while the device is not linked to
+/// a desktop. Local work keeps working; server features need linking.
+class _NotLinkedBanner extends StatelessWidget {
+  const _NotLinkedBanner({required this.onLinkTap});
+
+  final VoidCallback onLinkTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: BaloraColors.warningSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: BaloraColors.warningBorder),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.link_off_rounded,
+                color: BaloraColors.warning,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'غير مربوط بالكمبيوتر',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: BaloraColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'المسح الفوري والأسعار تحتاج الربط، والعمل المحلي يبقى متاحاً',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: BaloraColors.textSecondary,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: onLinkTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: BaloraColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'ربط',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -57,97 +57,182 @@ class AuthRepository {
         );
       }
 
-      // Configure API client for the target desktop server.
-      _apiClient.setBaseUrl(parsed.serverUrl);
-      _apiClient.clearToken();
-
-      // The desktop may have regenerated its TLS certificate since the
-      // last pairing. Forget any stored pin for this host so the
-      // certificate presented by this pairing is pinned instead of
-      // being rejected as a mismatch (see ServerCertificatePins).
-      await _forgetPinFor(parsed.serverUrl);
-
-      // Call the Balora Desktop mobile pairing endpoint.
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        '/m/api/pair',
-        data: {'code': parsed.code, 'label': parsed.label},
+      return await _completePairing(
+        serverUrl: parsed.serverUrl,
+        code: parsed.code,
+        label: parsed.label,
       );
-
-      switch (response) {
-        case Success(:final data):
-          final envelopeData = data['data'] is Map<String, dynamic>
-              ? data['data'] as Map<String, dynamic>
-              : data;
-
-          final sessionToken =
-              (envelopeData['token'] as String?) ??
-              (envelopeData['sessionToken'] as String?);
-          final deviceId =
-              (envelopeData['sessionId'] as String?) ??
-              (envelopeData['deviceId'] as String?);
-          final serverLabel = (envelopeData['label'] as String?)?.trim();
-          final expiresAtStr = envelopeData['expiresAt'] as String?;
-
-          if (sessionToken == null ||
-              deviceId == null ||
-              expiresAtStr == null) {
-            return Failure(
-              UnknownException(
-                'استجابة غير مكتملة من خادم الكمبيوتر.',
-                StackTrace.current,
-              ),
-            );
-          }
-
-          final expiresAt = DateTime.parse(expiresAtStr);
-          final effectiveName = (serverLabel != null && serverLabel.isNotEmpty)
-              ? serverLabel
-              : parsed.label;
-
-          // Clear any old sessions.
-          await _db.delete(_db.sessions).go();
-          await _tokenStore.deleteToken();
-
-          // Store the token in secure storage first: if that fails,
-          // pairing fails instead of leaving a session row behind
-          // with no usable token.
-          await _tokenStore.writeToken(sessionToken);
-
-          // Save the new session. The legacy `sessionToken` column
-          // is deliberately left empty — the token lives only in
-          // secure storage (see the Sessions table docs).
-          await _db
-              .into(_db.sessions)
-              .insert(
-                SessionsCompanion.insert(
-                  sessionToken: '',
-                  serverUrl: parsed.serverUrl,
-                  deviceId: deviceId,
-                  deviceName: effectiveName,
-                  expiresAt: expiresAt,
-                  createdAt: DateTime.now(),
-                  isActive: const Value(true),
-                ),
-              );
-
-          // Update ApiClient with the persistent session token and base URL.
-          _apiClient.setBaseUrl(parsed.serverUrl);
-          _apiClient.setToken(sessionToken);
-
-          // Mark the HTTP session link as verified so connection indicators
-          // across the app reflect the active session immediately.
-          _webSocket.setSessionConnected(true);
-
-          logger.i('Successfully paired with desktop. Session saved.');
-          return const Success(null);
-
-        case Failure(:final exception):
-          logger.e('Pairing API failed: $exception');
-          return Failure(exception);
-      }
     } catch (e, st) {
       logger.e('Invalid QR Code data', error: e, stackTrace: st);
       return Failure(UnknownException('تنسيق رمز QR غير صالح: $e', st));
+    }
+  }
+
+  /// Pairs with a desktop using a 6-digit code typed by the user
+  /// (the YouTube-style alternative to scanning the QR code).
+  ///
+  /// The code alone carries no server address, so [serverUrl] must be
+  /// supplied separately (last-used server, a discovered server, or a
+  /// manually typed address). The request, the response parsing and the
+  /// session saving are exactly the same as [pairWithQr] — see
+  /// [_completePairing].
+  Future<Result<void>> pairWithCode({
+    required String serverUrl,
+    required String code,
+    String? deviceLabel,
+  }) async {
+    final cleanCode = code.trim();
+    if (!isSixDigitCode(cleanCode)) {
+      return Failure(
+        UnknownException('كود الربط لازم يكون 6 أرقام.', StackTrace.current),
+      );
+    }
+    final normalizedServer = _normalizeServerUrl(serverUrl);
+    if (normalizedServer == null) {
+      return Failure(
+        UnknownException('عنوان الكمبيوتر غير صالح.', StackTrace.current),
+      );
+    }
+    try {
+      return await _completePairing(
+        serverUrl: normalizedServer,
+        code: cleanCode,
+        label: _resolveLabel(deviceLabel),
+      );
+    } catch (e, st) {
+      logger.e('Pairing by code failed', error: e, stackTrace: st);
+      return Failure(UnknownException('فشل الربط بالكود: $e', st));
+    }
+  }
+
+  /// Whether [code] is a well-formed 6-digit linking code. Shared by
+  /// the repository and the controller so a malformed code is rejected
+  /// before any network call.
+  static bool isSixDigitCode(String code) =>
+      RegExp(r'^\d{6}$').hasMatch(code);
+
+  static String _resolveLabel(String? deviceLabel) {
+    final custom = deviceLabel?.trim();
+    return (custom != null && custom.isNotEmpty)
+        ? custom
+        : 'هاتف الصيدلية';
+  }
+
+  /// Normalizes a typed server address (`192.168.1.15:4784`,
+  /// `https://192.168.1.15:4784`) into a base URL, or `null` when it
+  /// cannot be parsed.
+  static String? _normalizeServerUrl(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final candidate =
+        (trimmed.startsWith('http://') || trimmed.startsWith('https://'))
+        ? trimmed
+        : 'https://$trimmed';
+    final uri = Uri.tryParse(candidate);
+    if (uri == null ||
+        uri.host.isEmpty ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return null;
+    }
+    return '${uri.scheme}://${uri.authority}';
+  }
+
+  /// The shared pairing exchange used by both [pairWithQr] and
+  /// [pairWithCode]: posts `{code, label}` to `/m/api/pair`, pins the
+  /// desktop's certificate on first contact, and saves the session
+  /// (token in secure storage, metadata in the database).
+  Future<Result<void>> _completePairing({
+    required String serverUrl,
+    required String code,
+    required String label,
+  }) async {
+    // Configure API client for the target desktop server.
+    _apiClient.setBaseUrl(serverUrl);
+    _apiClient.clearToken();
+
+    // The desktop may have regenerated its TLS certificate since the
+    // last pairing. Forget any stored pin for this host so the
+    // certificate presented by this pairing is pinned instead of
+    // being rejected as a mismatch (see ServerCertificatePins).
+    await _forgetPinFor(serverUrl);
+
+    // Call the Balora Desktop mobile pairing endpoint.
+    final response = await _apiClient.post<Map<String, dynamic>>(
+      '/m/api/pair',
+      data: {'code': code, 'label': label},
+    );
+
+    switch (response) {
+      case Success(:final data):
+        final envelopeData = data['data'] is Map<String, dynamic>
+            ? data['data'] as Map<String, dynamic>
+            : data;
+
+        final sessionToken =
+            (envelopeData['token'] as String?) ??
+            (envelopeData['sessionToken'] as String?);
+        final deviceId =
+            (envelopeData['sessionId'] as String?) ??
+            (envelopeData['deviceId'] as String?);
+        final serverLabel = (envelopeData['label'] as String?)?.trim();
+        final expiresAtStr = envelopeData['expiresAt'] as String?;
+
+        if (sessionToken == null ||
+            deviceId == null ||
+            expiresAtStr == null) {
+          return Failure(
+            UnknownException(
+              'استجابة غير مكتملة من خادم الكمبيوتر.',
+              StackTrace.current,
+            ),
+          );
+        }
+
+        final expiresAt = DateTime.parse(expiresAtStr);
+        final effectiveName = (serverLabel != null && serverLabel.isNotEmpty)
+            ? serverLabel
+            : label;
+
+        // Clear any old sessions.
+        await _db.delete(_db.sessions).go();
+        await _tokenStore.deleteToken();
+
+        // Store the token in secure storage first: if that fails,
+        // pairing fails instead of leaving a session row behind
+        // with no usable token.
+        await _tokenStore.writeToken(sessionToken);
+
+        // Save the new session. The legacy `sessionToken` column
+        // is deliberately left empty — the token lives only in
+        // secure storage (see the Sessions table docs).
+        await _db
+            .into(_db.sessions)
+            .insert(
+              SessionsCompanion.insert(
+                sessionToken: '',
+                serverUrl: serverUrl,
+                deviceId: deviceId,
+                deviceName: effectiveName,
+                expiresAt: expiresAt,
+                createdAt: DateTime.now(),
+                isActive: const Value(true),
+              ),
+            );
+
+        // Update ApiClient with the persistent session token and base URL.
+        _apiClient.setBaseUrl(serverUrl);
+        _apiClient.setToken(sessionToken);
+
+        // Mark the HTTP session link as verified so connection indicators
+        // across the app reflect the active session immediately.
+        _webSocket.setSessionConnected(true);
+
+        logger.i('Successfully paired with desktop. Session saved.');
+        return const Success(null);
+
+      case Failure(:final exception):
+        logger.e('Pairing API failed: $exception');
+        return Failure(exception);
     }
   }
 
@@ -402,6 +487,11 @@ class AuthRepository {
   /// Returns `true` when the desktop confirms the session is active, `false`
   /// otherwise. If the server rejects the token with 401 (revoked or server
   /// restarted), the stale local session is purged automatically.
+  ///
+  /// Sliding renewal: when a successful check carries a refreshed
+  /// `expiresAt`, it is persisted to the session row, so an actively
+  /// used device keeps its session alive without re-pairing. A
+  /// response without a usable expiry leaves the stored one untouched.
   Future<bool> connectFromActiveSession() async {
     final session = await getActiveSession();
     if (session == null) {
@@ -414,7 +504,8 @@ class AuthRepository {
     );
 
     switch (response) {
-      case Success():
+      case Success(:final data):
+        await _refreshExpiryIfProvided(session, data);
         _webSocket.setSessionConnected(true);
         return true;
       case Failure(:final exception):
@@ -425,6 +516,38 @@ class AuthRepository {
           _webSocket.setSessionConnected(false);
         }
         return false;
+    }
+  }
+
+  /// Persists a refreshed `expiresAt` from a successful session check.
+  /// Ignored when the response carries no usable expiry — the stored
+  /// one stays. Never shortens the session from a stale value: only an
+  /// expiry in the future is written.
+  Future<void> _refreshExpiryIfProvided(
+    SessionEntry session,
+    Map<String, dynamic> data,
+  ) async {
+    final envelopeData = data['data'] is Map<String, dynamic>
+        ? data['data'] as Map<String, dynamic>
+        : data;
+    final expiresAtStr = envelopeData['expiresAt'] as String?;
+    if (expiresAtStr == null) return;
+    final refreshed = DateTime.tryParse(expiresAtStr);
+    if (refreshed == null ||
+        !refreshed.isAfter(DateTime.now()) ||
+        refreshed == session.expiresAt) {
+      return;
+    }
+    try {
+      await (_db.update(
+        _db.sessions,
+      )..where((t) => t.id.equals(session.id))).write(
+        SessionsCompanion(expiresAt: Value(refreshed)),
+      );
+      logger.i('Session expiry refreshed to $refreshed.');
+    } catch (e) {
+      // Non-fatal: the session stays valid until its stored expiry.
+      logger.w('Could not persist refreshed session expiry: $e');
     }
   }
 

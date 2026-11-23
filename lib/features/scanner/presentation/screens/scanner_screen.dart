@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../app/theme.dart';
+import '../../../../core/providers.dart';
+import '../../../../shared/widgets/link_required_view.dart';
 import '../../../../shared/widgets/scanner_overlay.dart';
 import '../../domain/product.dart';
 import '../../domain/scanner_mode.dart';
@@ -101,6 +103,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   @override
   Widget build(BuildContext context) {
     final currentMode = ref.watch(scannerModeNotifierProvider);
+    final linked = ref.watch(authStateProvider);
+
+    // Sale and price-check modes need the desktop. Product mode only
+    // picks a barcode for a local form, so it works unlinked.
+    if (!linked && currentMode != ScannerMode.product) {
+      return Scaffold(
+        appBar: AppBar(title: Text(currentMode.arabicTitle)),
+        body: const LinkRequiredView(),
+      );
+    }
 
     ref.listen(scannerControllerProvider, (previous, next) {
       final mode = ref.read(scannerModeNotifierProvider);

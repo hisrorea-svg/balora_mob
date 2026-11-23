@@ -42,20 +42,17 @@ class SettingsController extends _$SettingsController {
   }
 
   /// Unpairs the device, purges the offline queue (it carried the old
-  /// `deviceId` baked in), and flips the auth flag so the router redirects
-  /// to `/pairing` — the actual navigation is performed by the guard, so we
-  /// don't need to `context.go` here.
+  /// `deviceId` baked in), and flips the auth flag so the Settings
+  /// screen offers linking again. In guest mode there is no forced
+  /// redirect to `/pairing` — the user stays here.
   Future<void> unpair() async {
     state = state.copyWith(isLoading: true);
     try {
       await ref.read(authRepositoryProvider).unpair();
-      // Flip the router guard's auth flag — let the GoRouter `redirect` take
-      // the user to `/pairing`. Doing the navigation here (the old way) would
-      // race with the guard and skip the redirect logic.
       ref.read(authStateProvider.notifier).set(false);
     } finally {
-      // Reset loading so the screen doesn't get stuck on the spinner if the
-      // redirect hasn't fired yet (audit: BUG-U2).
+      // Reset loading so the screen doesn't get stuck on the spinner
+      // (audit: BUG-U2).
       state = state.copyWith(isLoading: false);
     }
   }
