@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/providers.dart';
-import '../features/auth/presentation/pairing_screen.dart';
+import '../features/auth/presentation/link_screen.dart';
 import '../features/counts/domain/count_models.dart';
 import '../features/counts/presentation/count_session_screen.dart';
 import '../features/counts/presentation/counts_screen.dart';
@@ -48,17 +48,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final linked = ref.read(authStateProvider);
       final path = state.matchedLocation;
-      final isPublic = path == '/splash' || path == '/pairing';
 
-      // Not linked: bounce everything that isn't public back to pairing.
-      if (!linked && !isPublic) return '/pairing';
-
-      // Linked but somehow still on the splash/pairing route: go home.
-      if (linked && (path == '/splash' || path == '/pairing')) {
-        // Allow the user to intentionally stay on /pairing (e.g. to re-pair)
-        // — only force home when they're on splash.
-        if (path == '/splash') return '/home';
-      }
+      // Guest mode: the app opens without a session. Nothing forces
+      // the user to `/pairing` any more — linking is an explicit
+      // action from Settings or the Home banner, and `/pairing` is
+      // only a deep link. The only redirect left keeps a linked user
+      // from lingering on the splash screen.
+      if (linked && path == '/splash') return '/home';
 
       return null;
     },
@@ -81,7 +77,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/pairing',
         name: 'pairing',
-        builder: (context, state) => const PairingScreen(),
+        builder: (context, state) => const LinkScreen(),
       ),
       // Products routes
       GoRoute(

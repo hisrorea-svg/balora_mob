@@ -24,12 +24,13 @@ AppDatabase appDatabase(Ref ref) {
 }
 
 /// Synchronous, mutable flag for "is this device currently linked to a
-/// desktop". Drives the GoRouter redirect guard.
+/// desktop". Drives the Home "not linked" banner, the server-gated
+/// screens, and the GoRouter redirect guard.
 ///
-/// Set by:
-/// - `SplashScreen` after the WS handshake resolves (true on success, false
-///   on failure/no session).
-/// - `PairingScreen` after a successful `pairWithQr` (true).
+/// Guest mode: `false` does NOT force the user to `/pairing` any more —
+/// it only means the link UI is shown. Set by:
+/// - `SplashScreen` after the background session check at startup.
+/// - `LinkScreen` after a successful pairing (true).
 /// - `SettingsController.unpair` when the user explicitly unpairs (false).
 @Riverpod(keepAlive: true)
 class AuthState extends _$AuthState {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../app/theme.dart';
 import '../settings_controller.dart';
@@ -216,30 +217,51 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // --- Restrained Destructive Action ---
-                  OutlinedButton.icon(
-                    onPressed: () => _showUnpairConfirmation(context, ref),
-                    icon: const Icon(
-                      Icons.link_off_rounded,
-                      color: BaloraColors.error,
-                      size: 20,
-                    ),
-                    label: const Text(
-                      'إلغاء اقتران هذا الهاتف',
-                      style: TextStyle(
+                  // --- Link / Unlink ---
+                  if (session == null)
+                    ElevatedButton.icon(
+                      onPressed: () => context.push('/pairing'),
+                      icon: const Icon(
+                        Icons.qr_code_scanner_rounded,
+                        size: 20,
+                      ),
+                      label: const Text(
+                        'ربط مع الدسكتوب',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: BaloraColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: () => _showUnpairConfirmation(context, ref),
+                      icon: const Icon(
+                        Icons.link_off_rounded,
                         color: BaloraColors.error,
-                        fontWeight: FontWeight.w700,
+                        size: 20,
+                      ),
+                      label: const Text(
+                        'إلغاء اقتران هذا الهاتف',
+                        style: TextStyle(
+                          color: BaloraColors.error,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: BaloraColors.error.withValues(alpha: 0.4),
+                        ),
+                        backgroundColor: BaloraColors.errorSoft.withValues(
+                          alpha: 0.35,
+                        ),
                       ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                        color: BaloraColors.error.withValues(alpha: 0.4),
-                      ),
-                      backgroundColor: BaloraColors.errorSoft.withValues(
-                        alpha: 0.35,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -287,14 +309,19 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showUnpairConfirmation(BuildContext context, WidgetRef ref) {
+    // Unpairing purges the offline queue (its items carry the old
+    // deviceId), so warn explicitly when unsynced work would be lost.
+    final pendingCount = ref.read(settingsControllerProvider).pendingQueueCount;
+    final content = pendingCount > 0
+        ? 'سيؤدي هذا إلى إنهاء الجلسة الحالية وفصل الاتصال بنظام Balora للكمبيوتر، '
+              'وسيتم حذف $pendingCount عملية غير متزامنة نهائياً ولا يمكن استرجاعها. '
+              'زامِن عملياتك أولاً إذا كنت تريد الاحتفاظ بها.'
+        : 'سيؤدي هذا إلى إنهاء الجلسة الحالية وفصل الاتصال بنظام Balora للكمبيوتر.';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إلغاء اقتران الجهاز؟'),
-        content: const Text(
-          'سيؤدي هذا إلى إنهاء الجلسة الحالية وفصل الاتصال بنظام Balora للكمبيوتر. '
-          'وقد تفقد أي عمليات غير متزامنة إذا قمت بمسح بيانات التطبيق.',
-        ),
+        content: Text(content),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -304,9 +331,9 @@ class SettingsScreen extends ConsumerWidget {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.of(ctx).pop();
-              // unpair() flips [authStateProvider] to `false`; the GoRouter
-              // redirect guard picks up the change via the refresh
-              // listenable and routes us to `/pairing`.
+              // unpair() flips [authStateProvider] to `false`; the
+              // screen rebuilds with no session and offers linking
+              // again. In guest mode there is no forced redirect.
               ref.read(settingsControllerProvider.notifier).unpair();
             },
             child: const Text(
