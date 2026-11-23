@@ -79,7 +79,14 @@ class Sessions extends Table {
   /// The Balora Desktop server URL.
   TextColumn get serverUrl => text()();
 
-  /// Session authentication token.
+  /// Legacy column, kept only so existing databases keep working.
+  ///
+  /// The session token used to be stored here as plain text. It now
+  /// lives in secure storage (see SecureSessionTokenStore) and this
+  /// column is always written as an empty string. Never store a secret
+  /// here, and never read the token from this column — use
+  /// AuthRepository.getActiveSession, which reads it from secure
+  /// storage (migrating any pre-existing value out of this column).
   TextColumn get sessionToken => text()();
 
   /// Unique device ID assigned by the server.

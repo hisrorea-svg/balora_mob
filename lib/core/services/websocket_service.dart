@@ -68,12 +68,13 @@ class WebSocketService {
     _setConnected(value);
   }
 
-  /// Builds the authenticated WebSocket URL from a base server URL.
-  static String buildWsUrl(
-    String serverUrl, {
-    required String sessionToken,
-    String? deviceId,
-  }) {
+  /// Builds the WebSocket URL from a base server URL.
+  ///
+  /// The session token is deliberately *not* part of the URL: it used
+  /// to be sent as a `?token=` query parameter, which leaks into
+  /// server logs, proxies and crash reports. Authentication happens
+  /// only via the `auth` message sent after the socket opens.
+  static String buildWsUrl(String serverUrl, {String? deviceId}) {
     var url = serverUrl
         .replaceFirst('http://', 'ws://')
         .replaceFirst('https://', 'wss://');
@@ -84,10 +85,10 @@ class WebSocketService {
       url = '$url/ws';
     }
     final sep = url.contains('?') ? '&' : '?';
-    final params =
-        'token=${Uri.encodeComponent(sessionToken)}'
-        '${deviceId == null ? '' : '&deviceId=${Uri.encodeComponent(deviceId)}'}';
-    return '$url$sep$params';
+    final params = deviceId == null
+        ? ''
+        : 'deviceId=${Uri.encodeComponent(deviceId)}';
+    return params.isEmpty ? url : '$url$sep$params';
   }
 
   /// Connects to the Balora Desktop WebSocket endpoint with the persisted
@@ -181,17 +182,19 @@ class WebSocketService {
       logger.i('🔌 Connecting to WebSocket: $_serverUrl');
 
       final uri = Uri.parse(_serverUrl!);
-      // Token is sent both in the query string (so the desktop can identify
-      // the WS on connect) and as an `auth` message after open (defence in
-      // depth for desktops that clear the query string).
+      // The token is sent only as an `auth` message after the socket
+      // opens — never in the URL, where it would leak into logs.
+      final connectUri =
+          _deviceId == null && uri.queryParameters.isEmpty
+          ? uri
+          : uri.replace(
+              queryParameters: {
+                ...uri.queryParameters,
+                'deviceId': ?_deviceId,
+              },
+            );
       _channel = WebSocketChannel.connect(
-        uri.replace(
-          queryParameters: {
-            ...uri.queryParameters,
-            'token': _sessionToken!,
-            'deviceId': ?_deviceId,
-          },
-        ),
+        connectUri,
         protocols: const ['balora-v1'],
       );
       await _channel!.ready;

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 
+import '../core/security/server_certificate_pins.dart';
 import 'app.dart';
 import 'router.dart';
 
@@ -45,6 +46,16 @@ Future<void> bootstrap() async {
   );
 
   logger.i('🚀 Balora Mobile starting...');
+
+  // Load pinned desktop certificates before any network call, so the
+  // TLS callback in `providers.dart` can validate self-signed LAN
+  // certificates. If this fails, pins stay unloaded and self-signed
+  // certificates are rejected (fail closed) until the next launch.
+  try {
+    await ServerCertificatePins.instance.load();
+  } catch (e) {
+    logger.w('Could not load pinned certificates: $e');
+  }
 
   // Single ProviderContainer — the previous version built *two* containers
   // and discarded the first one's ApiClient wiring (BUG-R6). Now everything

@@ -8,17 +8,32 @@ import '../../../core/api/dio_client.dart';
 import '../../../core/api/models/pairing_payload.dart';
 import '../../../core/providers.dart';
 import '../../../core/result/result.dart';
+import '../../../core/security/secure_session_store.dart';
+import '../../../core/security/server_certificate_pins.dart';
 import '../../../core/sync/database/app_database.dart';
 
 part 'auth_repository.g.dart';
 
 /// Repository responsible for pairing operations.
+///
+/// The session token itself is never stored in the Drift database —
+/// it lives in secure storage via [SessionTokenStore]. The `Sessions`
+/// table keeps only the non-secret session metadata, and its legacy
+/// `sessionToken` column is always written empty (any value left there
+/// by an older app version is migrated to secure storage and cleared
+/// on first read).
 class AuthRepository {
   final ApiClient _apiClient;
   final AppDatabase _db;
   final WebSocketService _webSocket;
+  final SessionTokenStore _tokenStore;
 
-  AuthRepository(this._apiClient, this._db, this._webSocket);
+  AuthRepository(
+    this._apiClient,
+    this._db,
+    this._webSocket, {
+    SessionTokenStore? tokenStore,
+  }) : _tokenStore = tokenStore ?? SecureSessionTokenStore();
 
   /// Decodes QR data (either a Balora Desktop pairing URL like
   /// `https://192.168.1.15:4784/m/?code=XXXX` or a JSON payload),
@@ -45,6 +60,12 @@ class AuthRepository {
       // Configure API client for the target desktop server.
       _apiClient.setBaseUrl(parsed.serverUrl);
       _apiClient.clearToken();
+
+      // The desktop may have regenerated its TLS certificate since the
+      // last pairing. Forget any stored pin for this host so the
+      // certificate presented by this pairing is pinned instead of
+      // being rejected as a mismatch (see ServerCertificatePins).
+      await _forgetPinFor(parsed.serverUrl);
 
       // Call the Balora Desktop mobile pairing endpoint.
       final response = await _apiClient.post<Map<String, dynamic>>(
@@ -85,13 +106,21 @@ class AuthRepository {
 
           // Clear any old sessions.
           await _db.delete(_db.sessions).go();
+          await _tokenStore.deleteToken();
 
-          // Save the new session.
+          // Store the token in secure storage first: if that fails,
+          // pairing fails instead of leaving a session row behind
+          // with no usable token.
+          await _tokenStore.writeToken(sessionToken);
+
+          // Save the new session. The legacy `sessionToken` column
+          // is deliberately left empty — the token lives only in
+          // secure storage (see the Sessions table docs).
           await _db
               .into(_db.sessions)
               .insert(
                 SessionsCompanion.insert(
-                  sessionToken: sessionToken,
+                  sessionToken: '',
                   serverUrl: parsed.serverUrl,
                   deviceId: deviceId,
                   deviceName: effectiveName,
@@ -227,18 +256,138 @@ class AuthRepository {
   /// but is expired, it is purged on the spot so the next call sees a clean
   /// slate (audit: BUG-A2 — previously expired sessions were treated as
   /// valid and left in the DB to keep resurrecting).
+  ///
+  /// The token is read from secure storage, not from the session row.
+  /// A token left in the row by an older app version is migrated to
+  /// secure storage and cleared from the row. If no token can be
+  /// found anywhere, the session is unusable and is purged.
+  ///
+  /// A transient failure to read secure storage is different from a
+  /// missing token: the row is kept and `null` is returned, so the
+  /// next launch can retry instead of forcing the user to re-pair
+  /// for a token that is still stored.
   Future<SessionEntry?> getActiveSession() async {
     final session = await _db.select(_db.sessions).getSingleOrNull();
     if (session == null) return null;
     if (!session.expiresAt.isAfter(DateTime.now())) {
       logger.w('Session expired (expiresAt=${session.expiresAt}) — purging.');
       await _db.delete(_db.sessions).go();
+      await _deleteTokenBestEffort();
+      _apiClient.clearAuth();
+      return null;
+    }
+    final String? token;
+    try {
+      token = await _readSessionToken(session);
+    } on _TokenReadFailed {
+      logger.w(
+        'Could not read session token — keeping session for retry.',
+      );
+      return null;
+    }
+    if (token == null || token.isEmpty) {
+      logger.w('Session row without a stored token — purging.');
+      await _db.delete(_db.sessions).go();
       _apiClient.clearAuth();
       return null;
     }
     _apiClient.setBaseUrl(session.serverUrl);
-    _apiClient.setToken(session.sessionToken);
+    _apiClient.setToken(token);
     return session;
+  }
+
+  /// Reads the session token from secure storage, migrating a legacy
+  /// plain-text token out of the session row if one is still there.
+  ///
+  /// Returns `null` only when the token is genuinely absent. When
+  /// secure storage itself cannot be read or written, throws
+  /// [_TokenReadFailed] instead, so the caller can keep the session
+  /// row for a later retry rather than purging it.
+  Future<String?> _readSessionToken(SessionEntry session) async {
+    final String? stored;
+    try {
+      stored = await _tokenStore.readToken();
+    } catch (e) {
+      logger.e('Could not read session token from secure storage: $e');
+      throw const _TokenReadFailed();
+    }
+    if (stored != null && stored.isNotEmpty) {
+      // A legacy plain-text token may still sit in the row even
+      // though secure storage already has one — clear it from disk.
+      // Clearing is best-effort: failing to clear must not invalidate
+      // a token we already hold.
+      if (session.sessionToken.isNotEmpty) {
+        await _clearLegacyToken(session);
+      }
+      return stored;
+    }
+    if (session.sessionToken.isEmpty) return null;
+    // Older app version: move the plain-text token into secure storage
+    // and clear it from the database so it is not left on disk.
+    try {
+      await _tokenStore.writeToken(session.sessionToken);
+    } catch (e) {
+      logger.e('Could not migrate legacy session token: $e');
+      throw const _TokenReadFailed();
+    }
+    await _clearLegacyToken(session);
+    return session.sessionToken;
+  }
+
+  /// Clears the legacy plain-text token from the session row, if any.
+  /// Best-effort: a failure here only logs, it never fails the caller.
+  Future<void> _clearLegacyToken(SessionEntry session) async {
+    if (session.sessionToken.isEmpty) return;
+    try {
+      await (_db.update(
+        _db.sessions,
+      )..where((t) => t.id.equals(session.id))).write(
+        const SessionsCompanion(sessionToken: Value('')),
+      );
+    } catch (e) {
+      logger.w('Could not clear legacy session token from database: $e');
+    }
+  }
+
+  /// Deletes the token from secure storage, logging instead of throwing
+  /// when storage is unavailable (used on purge/unpair paths, where a
+  /// storage failure must not leave a stale session behind or crash
+  /// the caller).
+  Future<void> _deleteTokenBestEffort() async {
+    try {
+      await _tokenStore.deleteToken();
+    } catch (e) {
+      logger.w('Could not delete session token from secure storage: $e');
+    }
+  }
+
+  /// Forgets the pinned certificate for [serverUrl], if any, without
+  /// failing the caller's flow when secure storage is unavailable
+  /// (for example in unit tests without a platform channel).
+  Future<void> _forgetPinFor(String serverUrl) async {
+    final hostPort = _hostPort(serverUrl);
+    if (hostPort == null) return;
+    try {
+      await ServerCertificatePins.instance.forget(
+        hostPort.host,
+        hostPort.port,
+      );
+    } catch (e) {
+      logger.w('Could not forget old certificate pin: $e');
+    }
+  }
+
+  static ({String host, int port})? _hostPort(String serverUrl) {
+    final uri = Uri.tryParse(serverUrl);
+    if (uri == null || uri.host.isEmpty) return null;
+    return (
+      host: uri.host,
+      port: uri.hasPort
+          ? uri.port
+          : uri.scheme == 'http'
+          ? 80
+          : 443,
+    );
   }
 
   /// Checks if there's an active, non-expired session in the database.
@@ -282,12 +431,27 @@ class AuthRepository {
   /// Clears the current session, purges the offline queue (which carries
   /// the old `deviceId` baked into each `commandJson`), and stands down the
   /// WebSocket so the desktop won't keep seeing a phantom connection.
+  /// Also deletes the token from secure storage and forgets the pinned
+  /// certificate for this server, so a later re-pair starts clean.
   Future<void> unpair() async {
+    final session = await _db.select(_db.sessions).getSingleOrNull();
     await _webSocket.disconnect();
     await _db.delete(_db.queueItems).go();
     await _db.delete(_db.sessions).go();
+    await _deleteTokenBestEffort();
+    if (session != null) {
+      await _forgetPinFor(session.serverUrl);
+    }
     _apiClient.clearAuth();
   }
+}
+
+/// Thrown when secure storage cannot be read or written at all, as
+/// opposed to the token simply being absent. Callers must not treat
+/// this as "no session": the token may still be there on the next
+/// attempt, so the session row must be kept, not purged.
+class _TokenReadFailed implements Exception {
+  const _TokenReadFailed();
 }
 
 @riverpod
